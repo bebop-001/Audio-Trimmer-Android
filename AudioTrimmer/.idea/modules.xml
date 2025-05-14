@@ -2,8 +2,11 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/Source.iml" filepath="$PROJECT_DIR$/Source.iml" />
-      <module fileurl="file://$PROJECT_DIR$/app/app.iml" filepath="$PROJECT_DIR$/app/app.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/AudioTrimmer.iml" filepath="$PROJECT_DIR$/.idea/modules/AudioTrimmer.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/app/AudioTrimmer.app.iml" filepath="$PROJECT_DIR$/.idea/modules/app/AudioTrimmer.app.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/app/AudioTrimmer.app.androidTest.iml" filepath="$PROJECT_DIR$/.idea/modules/app/AudioTrimmer.app.androidTest.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/app/AudioTrimmer.app.main.iml" filepath="$PROJECT_DIR$/.idea/modules/app/AudioTrimmer.app.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/app/AudioTrimmer.app.unitTest.iml" filepath="$PROJECT_DIR$/.idea/modules/app/AudioTrimmer.app.unitTest.iml" />
     </modules>
   </component>
 </project>
