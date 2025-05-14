@@ -1,0 +1,17 @@
+Wed May 14 11:41:05 AM PDT 2025
+git clone https://github.com/Intuz-production/Audio-Trimmer-Android.git
+
+Updated gradle.
+changed imports.
+code is Java.
+Lots of warnings but compiles and loads.
+Seems to create and edit .wav file.
+No way to name or select file.
+
+
+
+
+
+
+
+
