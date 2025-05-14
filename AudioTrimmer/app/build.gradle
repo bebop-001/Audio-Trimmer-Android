@@ -1,0 +1,84 @@
+plugins {
+    id 'com.android.application'
+    id 'kotlin-android'
+    // id 'kotlin-kapt'
+}
+
+android {
+    namespace "com.demo.audiotrimmer"
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.kana_tutor.kvgviewer"
+        minSdk 23
+        // suppress warning "not latest api".
+        // Upgrading to subsequent api while avoiding compose
+        // and retaining support for Android 6 presents
+        // significant difficulties.
+        //noinspection OldTargetApi
+        targetSdk 34
+        versionCode 1
+        versionName "1.0"
+
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+                // use git to get the current branch identifier.
+        def branchName = "git rev-parse --abbrev-ref HEAD".execute().text.trim()
+        def commitDate = "utils/gitCommitDate.pl".execute().text.trim()
+        def buildId = "git rev-parse  HEAD".execute().text.trim()
+
+        buildConfigField 'long', 'BUILD_TIMESTAMP',
+                String.format("0x%08xL", System.currentTimeMillis())
+        buildConfigField "String", "BRANCH_NAME", "\"$branchName\""
+        buildConfigField "String", "BUILD_ID", "\"$buildId\""
+        buildConfigField "String", "COMMIT_DATE", "\"$commitDate\""
+
+    }
+    signingConfigs {
+        release {
+            storeFile file("keystore.jks")
+            storePassword System.getenv("RELEASE_SIGNING_PASSWORD")
+            keyPassword System.getenv("RELEASE_SIGNING_PASSWORD")
+            keyAlias System.getenv("RELEASE_SIGNING_ALIAS")
+        }
+        debug {
+            storeFile file("${rootDir}/keystores/debug.keystore")
+            keyAlias 'androiddebugkey'
+            keyPassword 'android'
+            storePassword 'android'
+        }
+    }
+
+    buildFeatures {
+        buildConfig = true
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+    compileOptions {
+        sourceCompatibility = 1.17
+        targetCompatibility = 1.17
+        kotlinOptions {
+            freeCompilerArgs += [
+                    "-opt-in=kotlin.RequiresOptIn"
+            ]
+        }
+    }
+    kotlinOptions {
+        jvmTarget = "17"
+    }
+}
+apply plugin: 'com.android.application'
+
+dependencies {
+    implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
+    // newer requires kotlin 2.0+.
+    implementation 'androidx.core:core-ktx:1.13.1'
+    implementation 'androidx.appcompat:appcompat:1.7.0'
+    implementation 'androidx.constraintlayout:constraintlayout:2.2.1'
+
+    implementation 'com.google.android.material:material:1.12.0'
+}
