@@ -13,128 +13,127 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.demo.audiotrimmer.customAudioViews
 
-package com.demo.audiotrimmer.customAudioViews;
+import android.app.Activity
+import android.database.Cursor
+import android.net.Uri
+import android.provider.MediaStore
 
-import android.app.Activity;
-import android.database.Cursor;
-import android.net.Uri;
-import android.provider.MediaStore;
+class SongMetadataReader(activity: Activity?, filename: String) {
+    var GENRES_URI = MediaStore.Audio.Genres.EXTERNAL_CONTENT_URI
+    var mActivity: Activity? = null
+    var mFilename = ""
+    var mTitle: String? = ""
+    var mArtist: String? = ""
+    var mAlbum: String? = ""
+    var mGenre = ""
+    var mYear = -1
 
-import java.util.HashMap;
-
-public class SongMetadataReader {
-    public Uri GENRES_URI = MediaStore.Audio.Genres.EXTERNAL_CONTENT_URI;
-    public Activity mActivity = null;
-    public String mFilename = "";
-    public String mTitle = "";
-    public String mArtist = "";
-    public String mAlbum = "";
-    public String mGenre = "";
-    public int mYear = -1;
-
-    public SongMetadataReader(Activity activity, String filename) {
-        mActivity = activity;
-        mFilename = filename;
-        mTitle = _getBasename(filename);
+    init {
+        mActivity = activity
+        mFilename = filename
+        mTitle = _getBasename(filename)
         try {
-            ReadMetadata();
-        } catch (Exception e) {
+            ReadMetadata()
+        } catch (e: Exception) {
         }
     }
 
-    private void ReadMetadata() {
+    private fun ReadMetadata() {
         // Get a map from genre ids to names
-        HashMap<String, String> genreIdMap = new HashMap<String, String>();
-        Cursor c = mActivity.getContentResolver().query(
-                GENRES_URI,
-                new String[]{
-                        MediaStore.Audio.Genres._ID,
-                        MediaStore.Audio.Genres.NAME},
-                null, null, null);
-        for (c.moveToFirst(); !c.isAfterLast(); c.moveToNext()) {
-            genreIdMap.put(c.getString(0), c.getString(1));
+        val genreIdMap = HashMap<String, String>()
+        var c = mActivity!!.contentResolver.query(
+            GENRES_URI, arrayOf(
+                MediaStore.Audio.Genres._ID,
+                MediaStore.Audio.Genres.NAME
+            ),
+            null, null, null
+        )
+        c!!.moveToFirst()
+        while (!c.isAfterLast) {
+            genreIdMap[c.getString(0)] = c.getString(1)
+            c.moveToNext()
         }
-        c.close();
-        mGenre = "";
-        for (String genreId : genreIdMap.keySet()) {
-            c = mActivity.getContentResolver().query(
-                    makeGenreUri(genreId),
-                    new String[]{MediaStore.Audio.Media.DATA},
-                    MediaStore.Audio.Media.DATA + " LIKE \"" + mFilename + "\"",
-                    null, null);
-            if (c.getCount() != 0) {
-                mGenre = genreIdMap.get(genreId);
-                break;
-            }
-            c.close();
-            c = null;
-        }
-
-        Uri uri = MediaStore.Audio.Media.getContentUriForPath(mFilename);
-        c = mActivity.getContentResolver().query(
-                uri,
-                new String[]{
-                        MediaStore.Audio.Media._ID,
-                        MediaStore.Audio.Media.TITLE,
-                        MediaStore.Audio.Media.ARTIST,
-                        MediaStore.Audio.Media.ALBUM,
-                        MediaStore.Audio.Media.YEAR,
-                        MediaStore.Audio.Media.DATA},
+        c.close()
+        mGenre = ""
+        for (genreId in genreIdMap.keys) {
+            c = mActivity!!.contentResolver.query(
+                makeGenreUri(genreId), arrayOf(MediaStore.Audio.Media.DATA),
                 MediaStore.Audio.Media.DATA + " LIKE \"" + mFilename + "\"",
-                null, null);
-        if (c.getCount() == 0) {
-            mTitle = _getBasename(mFilename);
-            mArtist = "";
-            mAlbum = "";
-            mYear = -1;
-            return;
+                null, null
+            )
+            if (c!!.count != 0) {
+                mGenre = genreIdMap[genreId]!!
+                break
+            }
+            c.close()
+            c = null
         }
-        c.moveToFirst();
-        mTitle = _getStringFromColumn(c, MediaStore.Audio.Media.TITLE);
-        if (mTitle == null || mTitle.length() == 0) {
-            mTitle = _getBasename(mFilename);
+        val uri = MediaStore.Audio.Media.getContentUriForPath(mFilename)
+        c = mActivity!!.contentResolver.query(
+            uri!!, arrayOf(
+                MediaStore.Audio.Media._ID,
+                MediaStore.Audio.Media.TITLE,
+                MediaStore.Audio.Media.ARTIST,
+                MediaStore.Audio.Media.ALBUM,
+                MediaStore.Audio.Media.YEAR,
+                MediaStore.Audio.Media.DATA
+            ),
+            MediaStore.Audio.Media.DATA + " LIKE \"" + mFilename + "\"",
+            null, null
+        )
+        if (c!!.count == 0) {
+            mTitle = _getBasename(mFilename)
+            mArtist = ""
+            mAlbum = ""
+            mYear = -1
+            return
         }
-        mArtist = _getStringFromColumn(c, MediaStore.Audio.Media.ARTIST);
-        mAlbum = _getStringFromColumn(c, MediaStore.Audio.Media.ALBUM);
-        mYear = _getIntegerFromColumn(c, MediaStore.Audio.Media.YEAR);
-        c.close();
+        c.moveToFirst()
+        mTitle = _getStringFromColumn(c, MediaStore.Audio.Media.TITLE)
+        if (mTitle == null || mTitle!!.length == 0) {
+            mTitle = _getBasename(mFilename)
+        }
+        mArtist = _getStringFromColumn(c, MediaStore.Audio.Media.ARTIST)
+        mAlbum = _getStringFromColumn(c, MediaStore.Audio.Media.ALBUM)
+        mYear = _getIntegerFromColumn(c, MediaStore.Audio.Media.YEAR)
+        c.close()
     }
 
-    private Uri makeGenreUri(String genreId) {
-        String CONTENTDIR = MediaStore.Audio.Genres.Members.CONTENT_DIRECTORY;
+    private fun makeGenreUri(genreId: String): Uri {
+        val CONTENTDIR = MediaStore.Audio.Genres.Members.CONTENT_DIRECTORY
         return Uri.parse(
-                new StringBuilder()
-                        .append(GENRES_URI.toString())
-                        .append("/")
-                        .append(genreId)
-                        .append("/")
-                        .append(CONTENTDIR)
-                        .toString());
+            StringBuilder()
+                .append(GENRES_URI.toString())
+                .append("/")
+                .append(genreId)
+                .append("/")
+                .append(CONTENTDIR)
+                .toString()
+        )
     }
 
-    private String _getStringFromColumn(Cursor c, String columnName) {
-        int index = c.getColumnIndexOrThrow(columnName);
-        String value = c.getString(index);
-        if (value != null && value.length() > 0) {
-            return value;
+    private fun _getStringFromColumn(c: Cursor?, columnName: String): String? {
+        val index = c!!.getColumnIndexOrThrow(columnName)
+        val value = c.getString(index)
+        return if (value != null && value.length > 0) {
+            value
         } else {
-            return null;
+            null
         }
     }
 
-    private int _getIntegerFromColumn(Cursor c, String columnName) {
-        int index = c.getColumnIndexOrThrow(columnName);
-        Integer value = c.getInt(index);
-        if (value != null) {
-            return value;
-        } else {
-            return -1;
-        }
+    private fun _getIntegerFromColumn(c: Cursor?, columnName: String): Int {
+        val index = c!!.getColumnIndexOrThrow(columnName)
+        val value = c.getInt(index)
+        return value ?: -1
     }
 
-    private String _getBasename(String filename) {
-        return filename.substring(filename.lastIndexOf('/') + 1,
-                filename.lastIndexOf('.'));
+    private fun _getBasename(filename: String): String {
+        return filename.substring(
+            filename.lastIndexOf('/') + 1,
+            filename.lastIndexOf('.')
+        )
     }
 }

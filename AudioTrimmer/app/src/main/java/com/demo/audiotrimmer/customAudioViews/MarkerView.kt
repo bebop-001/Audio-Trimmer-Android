@@ -13,132 +13,115 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.demo.audiotrimmer.customAudioViews
 
-package com.demo.audiotrimmer.customAudioViews;
-
-import android.content.Context;
-import android.graphics.Canvas;
-import android.graphics.Rect;
-import android.util.AttributeSet;
-import android.view.KeyEvent;
-import android.view.MotionEvent;
+import android.content.Context
+import android.graphics.Canvas
+import android.graphics.Rect
+import android.util.AttributeSet
+import android.view.KeyEvent
+import android.view.MotionEvent
+import androidx.appcompat.widget.AppCompatImageView
+import kotlin.math.sqrt
 
 /**
  * Represents a draggable start or end marker.
- * <p>
+ *
+ *
  * Most events are passed back to the client class using a
  * listener interface.
- * <p>
+ *
+ *
  * This class directly keeps track of its own velocity, though,
  * accelerating as the user holds down the left or right arrows
  * while this control is focused.
  */
-public class MarkerView extends androidx.appcompat.widget.AppCompatImageView {
-
-    public interface MarkerListener {
-        public void markerTouchStart(MarkerView marker, float pos);
-
-        public void markerTouchMove(MarkerView marker, float pos);
-
-        public void markerTouchEnd(MarkerView marker);
-
-        public void markerFocus(MarkerView marker);
-
-        public void markerLeft(MarkerView marker, int velocity);
-
-        public void markerRight(MarkerView marker, int velocity);
-
-        public void markerEnter(MarkerView marker);
-
-        public void markerKeyUp();
-
-        public void markerDraw();
+class MarkerView(context: Context?, attrs: AttributeSet?) : AppCompatImageView(
+    context!!, attrs
+) {
+    interface MarkerListener {
+        fun markerTouchStart(marker: MarkerView, pos: Float)
+        fun markerTouchMove(marker: MarkerView, pos: Float)
+        fun markerTouchEnd(marker: MarkerView)
+        fun markerFocus(marker: MarkerView)
+        fun markerLeft(marker: MarkerView, velocity: Int)
+        fun markerRight(marker: MarkerView, velocity: Int)
+        fun markerEnter(marker: MarkerView)
+        fun markerKeyUp()
+        fun markerDraw()
     }
 
-    ;
+    private var mVelocity: Int
+    private var mListener: MarkerListener?
 
-    private int mVelocity;
-    private MarkerListener mListener;
-
-    public MarkerView(Context context, AttributeSet attrs) {
-        super(context, attrs);
+    init {
 
         // Make sure we get keys
-        setFocusable(true);
-
-        mVelocity = 0;
-        mListener = null;
+        isFocusable = true
+        mVelocity = 0
+        mListener = null
     }
 
-    public void _setListener(MarkerListener listener) {
-        mListener = listener;
+    fun markerChangedListener(listener: MarkerListener) {
+        mListener = listener
     }
 
-    @Override
-    public boolean onTouchEvent(MotionEvent event) {
-        switch (event.getAction()) {
-            case MotionEvent.ACTION_DOWN:
-                requestFocus();
+    override fun onTouchEvent(event: MotionEvent): Boolean {
+        when (event.action) {
+            MotionEvent.ACTION_DOWN -> {
+                requestFocus()
                 // We use raw x because this window itself is going to
                 // move, which will screw up the "local" coordinates
-                if (mListener != null)
-                    mListener.markerTouchStart(this, event.getRawX());
-                break;
-            case MotionEvent.ACTION_MOVE:
-                // We use raw x because this window itself is going to
+                if (mListener != null) mListener!!.markerTouchStart(this, event.rawX)
+            }
+
+            MotionEvent.ACTION_MOVE ->                 // We use raw x because this window itself is going to
                 // move, which will screw up the "local" coordinates
-                if (mListener != null)
-                    mListener.markerTouchMove(this, event.getRawX());
-                break;
-            case MotionEvent.ACTION_UP:
-                if (mListener != null)
-                    mListener.markerTouchEnd(this);
-                break;
+                if (mListener != null) mListener!!.markerTouchMove(this, event.rawX)
+
+            MotionEvent.ACTION_UP -> if (mListener != null) mListener!!.markerTouchEnd(this)
         }
-        return true;
+        return true
     }
 
-    @Override
-    protected void onFocusChanged(boolean gainFocus, int direction,
-                                  Rect previouslyFocusedRect) {
-        if (gainFocus && mListener != null)
-            mListener.markerFocus(this);
-        super.onFocusChanged(gainFocus, direction, previouslyFocusedRect);
+    override fun onFocusChanged(
+        gainFocus: Boolean, direction: Int,
+        previouslyFocusedRect: Rect?
+    ) {
+        if (gainFocus && mListener != null) mListener!!.markerFocus(this)
+        super.onFocusChanged(gainFocus, direction, previouslyFocusedRect)
     }
 
-    @Override
-    protected void onDraw(Canvas canvas) {
-        super.onDraw(canvas);
-
-        if (mListener != null)
-            mListener.markerDraw();
+    override fun onDraw(canvas: Canvas) {
+        super.onDraw(canvas)
+        if (mListener != null) mListener!!.markerDraw()
     }
 
-    @Override
-    public boolean onKeyDown(int keyCode, KeyEvent event) {
-        mVelocity++;
-        int v = (int) Math.sqrt(1 + mVelocity / 2);
+    override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
+        mVelocity++
+        val v = sqrt((1 + mVelocity / 2).toDouble()).toInt()
         if (mListener != null) {
-            if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
-                mListener.markerLeft(this, v);
-                return true;
-            } else if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
-                mListener.markerRight(this, v);
-                return true;
-            } else if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER) {
-                mListener.markerEnter(this);
-                return true;
+            when (keyCode) {
+                KeyEvent.KEYCODE_DPAD_LEFT -> {
+                    mListener!!.markerLeft(this, v)
+                    return true
+                }
+                KeyEvent.KEYCODE_DPAD_RIGHT -> {
+                    mListener!!.markerRight(this, v)
+                    return true
+                }
+                KeyEvent.KEYCODE_DPAD_CENTER -> {
+                    mListener!!.markerEnter(this)
+                    return true
+                }
             }
         }
-
-        return super.onKeyDown(keyCode, event);
+        return super.onKeyDown(keyCode, event)
     }
 
-    @Override
-    public boolean onKeyUp(int keyCode, KeyEvent event) {
-        mVelocity = 0;
-        if (mListener != null)
-            mListener.markerKeyUp();
-        return super.onKeyDown(keyCode, event);
+    override fun onKeyUp(keyCode: Int, event: KeyEvent): Boolean {
+        mVelocity = 0
+        if (mListener != null) mListener!!.markerKeyUp()
+        return super.onKeyDown(keyCode, event)
     }
 }

@@ -124,12 +124,12 @@ class AudioTrimmerActivity : AppCompatActivity(), View.OnClickListener, MarkerLi
         mRecordedSoundFile = null
         mKeyDown = false
         audioWaveform!!._setListener(this)
-        markerStart!!._setListener(this)
+        markerStart!!.markerChangedListener(this)
         markerStart!!.setAlpha(1f)
         markerStart!!.isFocusable = true
         markerStart!!.setFocusableInTouchMode(true)
         mStartVisible = true
-        markerEnd!!._setListener(this)
+        markerEnd!!.markerChangedListener(this)
         markerEnd!!.setAlpha(1f)
         markerEnd!!.isFocusable = true
         markerEnd!!.setFocusableInTouchMode(true)
@@ -594,9 +594,9 @@ class AudioTrimmerActivity : AppCompatActivity(), View.OnClickListener, MarkerLi
     }
 
     override fun markerDraw() {}
-    override fun markerTouchStart(marker: MarkerView, x: Float) {
+    override fun markerTouchStart(marker: MarkerView, pos: Float) {
         mTouchDragging = true
-        mTouchStart = x
+        mTouchStart = pos
         mTouchInitialStartPos = mStartPos
         mTouchInitialEndPos = mEndPos
         handlePause()
