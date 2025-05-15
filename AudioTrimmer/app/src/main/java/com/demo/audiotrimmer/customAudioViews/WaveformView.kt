@@ -13,416 +13,408 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.demo.audiotrimmer.customAudioViews
 
-package com.demo.audiotrimmer.customAudioViews;
-
-import android.content.Context;
-import android.content.res.Resources;
-import android.graphics.Canvas;
-import android.graphics.DashPathEffect;
-import android.graphics.Paint;
-import android.util.AttributeSet;
-import android.util.Log;
-import android.view.GestureDetector;
-import android.view.MotionEvent;
-import android.view.ScaleGestureDetector;
-import android.view.View;
-
-import com.demo.audiotrimmer.R;
-
+import android.content.Context
+import android.graphics.Canvas
+import android.graphics.DashPathEffect
+import android.graphics.Paint
+import android.util.AttributeSet
+import android.util.Log
+import android.view.GestureDetector
+import android.view.GestureDetector.SimpleOnGestureListener
+import android.view.MotionEvent
+import android.view.ScaleGestureDetector
+import android.view.ScaleGestureDetector.SimpleOnScaleGestureListener
+import android.view.View
+import com.demo.audiotrimmer.R
+import kotlin.math.abs
 
 /**
  * WaveformView is an Android view that displays a visual representation
  * of an audio waveform.  It retrieves the frame gains from a CheapSoundFile
  * object and recomputes the shape contour at several zoom levels.
- * <p>
+ *
+ *
  * This class doesn't handle selection or any of the touch interactions
  * directly, so it exposes a listener interface.  The class that embeds
  * this view should add itself as a listener and make the view scroll
  * and respond to other events appropriately.
- * <p>
+ *
+ *
  * WaveformView doesn't actually handle selection, but it will just display
  * the selected part of the waveform in a different color.
  */
-public class WaveformView extends View {
+class WaveformView(context: Context?, attrs: AttributeSet?) : View(context, attrs) {
+    var isDrawBorder = true
+        private set
 
-    private boolean isDrawBorder = true;
-
-    public boolean isDrawBorder() {
-        return isDrawBorder;
+    fun _setIsDrawBorder(isDrawBorder: Boolean) {
+        this.isDrawBorder = isDrawBorder
     }
 
-    public void _setIsDrawBorder(boolean isDrawBorder) {
-        this.isDrawBorder = isDrawBorder;
+    interface WaveformListener {
+        fun waveformTouchStart(x: Float)
+        fun waveformTouchMove(x: Float)
+        fun waveformTouchEnd()
+        fun waveformFling(x: Float)
+        fun waveformDraw()
+        fun waveformZoomIn()
+        fun waveformZoomOut()
     }
-
-    public interface WaveformListener {
-        public void waveformTouchStart(float x);
-
-        public void waveformTouchMove(float x);
-
-        public void waveformTouchEnd();
-
-        public void waveformFling(float x);
-
-        public void waveformDraw();
-
-        public void waveformZoomIn();
-
-        public void waveformZoomOut();
-    }
-
-    ;
 
     // Colors
-    private Paint mGridPaint;
-    private Paint mSelectedLinePaint;
-    private Paint mUnselectedLinePaint;
-    private Paint mUnselectedBkgndLinePaint;
-    private Paint mBorderLinePaint;
-    private Paint mPlaybackLinePaint;
-    private Paint mTimecodePaint;
+    private val mGridPaint: Paint
+    private val mSelectedLinePaint: Paint
+    private val mUnselectedLinePaint: Paint
+    private val mUnselectedBkgndLinePaint: Paint
+    private val mBorderLinePaint: Paint
+    private val mPlaybackLinePaint: Paint
+    private val mTimecodePaint: Paint
+    private var mSoundFile: SoundFile?
+    private var mLenByZoomLevel: IntArray?
+    private var mValuesByZoomLevel: Array<DoubleArray?>?
+    private lateinit var mZoomFactorByZoomLevel: DoubleArray
+    private var mHeightsAtThisZoomLevel: IntArray?
+    private var mZoomLevel = 0
+    private var mNumZoomLevels = 0
+    private var mSampleRate = 0
+    private var mSamplesPerFrame = 0
+    private var mOffset: Int
+    private var mSelectionStart: Int
+    private var mSelectionEnd: Int
+    private var mPlaybackPos: Int
+    private var mDensity: Float
+    private var mInitialScaleSpan = 0f
+    private var mListener: WaveformListener? = null
+    private val mGestureDetector: GestureDetector
+    private val mScaleGestureDetector: ScaleGestureDetector
+    var isInitialized: Boolean
+        private set
 
-    private SoundFile mSoundFile;
-    private int[] mLenByZoomLevel;
-    private double[][] mValuesByZoomLevel;
-    private double[] mZoomFactorByZoomLevel;
-    private int[] mHeightsAtThisZoomLevel;
-    private int mZoomLevel;
-    private int mNumZoomLevels;
-    private int mSampleRate;
-    private int mSamplesPerFrame;
-    private int mOffset;
-    private int mSelectionStart;
-    private int mSelectionEnd;
-    private int mPlaybackPos;
-    private float mDensity;
-    private float mInitialScaleSpan;
-    private WaveformListener mListener;
-    private GestureDetector mGestureDetector;
-    private ScaleGestureDetector mScaleGestureDetector;
-    private boolean mInitialized;
-
-    public WaveformView(Context context, AttributeSet attrs) {
-        super(context, attrs);
+    init {
 
         // We don't want keys, the markers get these
-        setFocusable(false);
-
-        Resources res = getResources();
-        mGridPaint = new Paint();
-        mGridPaint.setAntiAlias(false);
-        mGridPaint.setColor(res.getColor(R.color.colorGridLine));
-        mSelectedLinePaint = new Paint();
-        mSelectedLinePaint.setAntiAlias(false);
-        mSelectedLinePaint.setColor(res.getColor(R.color.waveformSelected));
-        mUnselectedLinePaint = new Paint();
-        mUnselectedLinePaint.setAntiAlias(false);
-        mUnselectedLinePaint.setColor(res.getColor(R.color.waveformUnselected));
-        mUnselectedBkgndLinePaint = new Paint();
-        mUnselectedBkgndLinePaint.setAntiAlias(false);
-        mUnselectedBkgndLinePaint.setColor(res.getColor(R.color.waveformUnselectedBackground));
-        mBorderLinePaint = new Paint();
-        mBorderLinePaint.setAntiAlias(true);
-        mBorderLinePaint.setStrokeWidth(6f);
-        mBorderLinePaint.setPathEffect(new DashPathEffect(new float[]{3.0f, 2.0f}, 0.0f));
-        mBorderLinePaint.setColor(res.getColor(R.color.colorSelectionBorder));
-        mPlaybackLinePaint = new Paint();
-        mPlaybackLinePaint.setAntiAlias(false);
-        mPlaybackLinePaint.setStrokeWidth(3f);
-        mPlaybackLinePaint.setColor(res.getColor(R.color.colorPlaybackIndicator));
-        mTimecodePaint = new Paint();
-        mTimecodePaint.setTextSize(12);
-        mTimecodePaint.setAntiAlias(true);
-        mTimecodePaint.setColor(res.getColor(R.color.colorTimeCode));
-        mTimecodePaint.setShadowLayer(2, 1, 1, res.getColor(R.color.colorTimeCodeShadow));
-
-        mGestureDetector = new GestureDetector(
-                context,
-                new GestureDetector.SimpleOnGestureListener() {
-                    public boolean onFling(MotionEvent e1, MotionEvent e2, float vx, float vy) {
-                        mListener.waveformFling(vx);
-                        return true;
-                    }
+        isFocusable = false
+        val res = resources
+        mGridPaint = Paint()
+        mGridPaint.isAntiAlias = false
+        mGridPaint.setColor(res.getColor(R.color.colorGridLine))
+        mSelectedLinePaint = Paint()
+        mSelectedLinePaint.isAntiAlias = false
+        mSelectedLinePaint.setColor(res.getColor(R.color.waveformSelected))
+        mUnselectedLinePaint = Paint()
+        mUnselectedLinePaint.isAntiAlias = false
+        mUnselectedLinePaint.setColor(res.getColor(R.color.waveformUnselected))
+        mUnselectedBkgndLinePaint = Paint()
+        mUnselectedBkgndLinePaint.isAntiAlias = false
+        mUnselectedBkgndLinePaint.setColor(res.getColor(R.color.waveformUnselectedBackground))
+        mBorderLinePaint = Paint()
+        mBorderLinePaint.isAntiAlias = true
+        mBorderLinePaint.strokeWidth = 6f
+        mBorderLinePaint.setPathEffect(DashPathEffect(floatArrayOf(3.0f, 2.0f), 0.0f))
+        mBorderLinePaint.setColor(res.getColor(R.color.colorSelectionBorder))
+        mPlaybackLinePaint = Paint()
+        mPlaybackLinePaint.isAntiAlias = false
+        mPlaybackLinePaint.strokeWidth = 3f
+        mPlaybackLinePaint.setColor(res.getColor(R.color.colorPlaybackIndicator))
+        mTimecodePaint = Paint()
+        mTimecodePaint.textSize = 12f
+        mTimecodePaint.isAntiAlias = true
+        mTimecodePaint.setColor(res.getColor(R.color.colorTimeCode))
+        mTimecodePaint.setShadowLayer(2f, 1f, 1f, res.getColor(R.color.colorTimeCodeShadow))
+        mGestureDetector = GestureDetector(
+            context,
+            object : SimpleOnGestureListener() {
+                override fun onFling(
+                    e1: MotionEvent?,
+                    e2: MotionEvent,
+                    vx: Float,
+                    vy: Float
+                ): Boolean {
+                    mListener!!.waveformFling(vx)
+                    return true
                 }
-        );
-
-        mScaleGestureDetector = new ScaleGestureDetector(
-                context,
-                new ScaleGestureDetector.SimpleOnScaleGestureListener() {
-                    public boolean onScaleBegin(ScaleGestureDetector d) {
-                        Log.v("Ringdroid", "ScaleBegin " + d.getCurrentSpanX());
-                        mInitialScaleSpan = Math.abs(d.getCurrentSpanX());
-                        return true;
-                    }
-
-                    public boolean onScale(ScaleGestureDetector d) {
-                        float scale = Math.abs(d.getCurrentSpanX());
-                        Log.v("Ringdroid", "Scale " + (scale - mInitialScaleSpan));
-                        if (scale - mInitialScaleSpan > 40) {
-                            mListener.waveformZoomIn();
-                            mInitialScaleSpan = scale;
-                        }
-                        if (scale - mInitialScaleSpan < -40) {
-                            mListener.waveformZoomOut();
-                            mInitialScaleSpan = scale;
-                        }
-                        return true;
-                    }
-
-                    public void onScaleEnd(ScaleGestureDetector d) {
-                        Log.v("Ringdroid", "ScaleEnd " + d.getCurrentSpanX());
-                    }
+            }
+        )
+        mScaleGestureDetector = ScaleGestureDetector(
+            context!!,
+            object : SimpleOnScaleGestureListener() {
+                override fun onScaleBegin(d: ScaleGestureDetector): Boolean {
+                    Log.v("Ringdroid", "ScaleBegin " + d.currentSpanX)
+                    mInitialScaleSpan = abs(d.currentSpanX.toDouble()).toFloat()
+                    return true
                 }
-        );
 
-        mSoundFile = null;
-        mLenByZoomLevel = null;
-        mValuesByZoomLevel = null;
-        mHeightsAtThisZoomLevel = null;
-        mOffset = 0;
-        mPlaybackPos = -1;
-        mSelectionStart = 0;
-        mSelectionEnd = 0;
-        mDensity = 1.0f;
-        mInitialized = false;
+                override fun onScale(d: ScaleGestureDetector): Boolean {
+                    val scale = abs(d.currentSpanX.toDouble()).toFloat()
+                    Log.v("Ringdroid", "Scale " + (scale - mInitialScaleSpan))
+                    if (scale - mInitialScaleSpan > 40) {
+                        mListener!!.waveformZoomIn()
+                        mInitialScaleSpan = scale
+                    }
+                    if (scale - mInitialScaleSpan < -40) {
+                        mListener!!.waveformZoomOut()
+                        mInitialScaleSpan = scale
+                    }
+                    return true
+                }
+
+                override fun onScaleEnd(d: ScaleGestureDetector) {
+                    Log.v("Ringdroid", "ScaleEnd " + d.currentSpanX)
+                }
+            }
+        )
+        mSoundFile = null
+        mLenByZoomLevel = null
+        mValuesByZoomLevel = null
+        mHeightsAtThisZoomLevel = null
+        mOffset = 0
+        mPlaybackPos = -1
+        mSelectionStart = 0
+        mSelectionEnd = 0
+        mDensity = 1.0f
+        this.isInitialized = false
     }
 
-    @Override
-    public boolean onTouchEvent(MotionEvent event) {
-        mScaleGestureDetector.onTouchEvent(event);
+    override fun onTouchEvent(event: MotionEvent): Boolean {
+        mScaleGestureDetector.onTouchEvent(event)
         if (mGestureDetector.onTouchEvent(event)) {
-            return true;
+            return true
         }
-
-        switch (event.getAction()) {
-            case MotionEvent.ACTION_DOWN:
-                mListener.waveformTouchStart(event.getX());
-                break;
-            case MotionEvent.ACTION_MOVE:
-                mListener.waveformTouchMove(event.getX());
-                break;
-            case MotionEvent.ACTION_UP:
-                mListener.waveformTouchEnd();
-                break;
+        when (event.action) {
+            MotionEvent.ACTION_DOWN -> mListener!!.waveformTouchStart(event.x)
+            MotionEvent.ACTION_MOVE -> mListener!!.waveformTouchMove(event.x)
+            MotionEvent.ACTION_UP -> mListener!!.waveformTouchEnd()
         }
-        return true;
+        return true
     }
 
-    public boolean hasSoundFile() {
-        return mSoundFile != null;
+    fun hasSoundFile(): Boolean {
+        return mSoundFile != null
     }
 
-    public void _setSoundFile(SoundFile soundFile) {
-        mSoundFile = soundFile;
-        mSampleRate = mSoundFile._getSampleRate();
-        mSamplesPerFrame = mSoundFile._getSamplesPerFrame();
-        computeDoublesForAllZoomLevels();
-        mHeightsAtThisZoomLevel = null;
+    fun _setSoundFile(soundFile: SoundFile?) {
+        mSoundFile = soundFile
+        mSampleRate = mSoundFile!!.sampleRate
+        mSamplesPerFrame = mSoundFile!!.samplesPerFrame
+        computeDoublesForAllZoomLevels()
+        mHeightsAtThisZoomLevel = null
     }
 
-    public boolean isInitialized() {
-        return mInitialized;
+    fun _getZoomLevel(): Int {
+        return mZoomLevel
     }
 
-    public int _getZoomLevel() {
-        return mZoomLevel;
-    }
-
-    public void _setZoomLevel(int zoomLevel) {
+    fun _setZoomLevel(zoomLevel: Int) {
         while (mZoomLevel > zoomLevel) {
-            zoomIn();
+            zoomIn()
         }
         while (mZoomLevel < zoomLevel) {
-            zoomOut();
+            zoomOut()
         }
     }
 
-    public boolean canZoomIn() {
-        return (mZoomLevel > 0);
+    fun canZoomIn(): Boolean {
+        return mZoomLevel > 0
     }
 
-    public void zoomIn() {
+    fun zoomIn() {
         if (canZoomIn()) {
-            mZoomLevel--;
-            mSelectionStart *= 2;
-            mSelectionEnd *= 2;
-            mHeightsAtThisZoomLevel = null;
-            int offsetCenter = mOffset + getMeasuredWidth() / 2;
-            offsetCenter *= 2;
-            mOffset = offsetCenter - getMeasuredWidth() / 2;
-            if (mOffset < 0)
-                mOffset = 0;
-            invalidate();
+            mZoomLevel--
+            mSelectionStart *= 2
+            mSelectionEnd *= 2
+            mHeightsAtThisZoomLevel = null
+            var offsetCenter = mOffset + measuredWidth / 2
+            offsetCenter *= 2
+            mOffset = offsetCenter - measuredWidth / 2
+            if (mOffset < 0) mOffset = 0
+            invalidate()
         }
     }
 
-    public boolean canZoomOut() {
-        return (mZoomLevel < mNumZoomLevels - 1);
+    fun canZoomOut(): Boolean {
+        return mZoomLevel < mNumZoomLevels - 1
     }
 
-    public void zoomOut() {
+    fun zoomOut() {
         if (canZoomOut()) {
-            mZoomLevel++;
-            mSelectionStart /= 2;
-            mSelectionEnd /= 2;
-            int offsetCenter = mOffset + getMeasuredWidth() / 2;
-            offsetCenter /= 2;
-            mOffset = offsetCenter - getMeasuredWidth() / 2;
-            if (mOffset < 0)
-                mOffset = 0;
-            mHeightsAtThisZoomLevel = null;
-            invalidate();
+            mZoomLevel++
+            mSelectionStart /= 2
+            mSelectionEnd /= 2
+            var offsetCenter = mOffset + measuredWidth / 2
+            offsetCenter /= 2
+            mOffset = offsetCenter - measuredWidth / 2
+            if (mOffset < 0) mOffset = 0
+            mHeightsAtThisZoomLevel = null
+            invalidate()
         }
     }
 
-    public int maxPos() {
-        return mLenByZoomLevel[mZoomLevel];
+    fun maxPos(): Int {
+        return mLenByZoomLevel!![mZoomLevel]
     }
 
-    public int secondsToFrames(double seconds) {
-        return (int) (1.0 * seconds * mSampleRate / mSamplesPerFrame + 0.5);
+    fun secondsToFrames(seconds: Double): Int {
+        return (1.0 * seconds * mSampleRate / mSamplesPerFrame + 0.5).toInt()
     }
 
-    public int secondsToPixels(double seconds) {
-        double z = mZoomFactorByZoomLevel[mZoomLevel];
-        return (int) (z * seconds * mSampleRate / mSamplesPerFrame + 0.5);
+    fun secondsToPixels(seconds: Double): Int {
+        val z = mZoomFactorByZoomLevel[mZoomLevel]
+        return (z * seconds * mSampleRate / mSamplesPerFrame + 0.5).toInt()
     }
 
-    public double pixelsToSeconds(int pixels) {
-        double z = mZoomFactorByZoomLevel[mZoomLevel];
-        return (pixels * (double) mSamplesPerFrame / (mSampleRate * z));
+    fun pixelsToSeconds(pixels: Int): Double {
+        val z = mZoomFactorByZoomLevel[mZoomLevel]
+        return pixels * mSamplesPerFrame.toDouble() / (mSampleRate * z)
     }
 
-    public int millisecsToPixels(int msecs) {
-        double z = mZoomFactorByZoomLevel[mZoomLevel];
-        return (int) ((msecs * 1.0 * mSampleRate * z) /
-                (1000.0 * mSamplesPerFrame) + 0.5);
+    fun millisecsToPixels(msecs: Int): Int {
+        val z = mZoomFactorByZoomLevel[mZoomLevel]
+        return (msecs * 1.0 * mSampleRate * z /
+                (1000.0 * mSamplesPerFrame) + 0.5).toInt()
     }
 
-    public int pixelsToMillisecs(int pixels) {
-        double z = mZoomFactorByZoomLevel[mZoomLevel];
-        return (int) (pixels * (1000.0 * mSamplesPerFrame) /
-                (mSampleRate * z) + 0.5);
+    fun pixelsToMillisecs(pixels: Int): Int {
+        val z = mZoomFactorByZoomLevel[mZoomLevel]
+        return (pixels * (1000.0 * mSamplesPerFrame) /
+                (mSampleRate * z) + 0.5).toInt()
     }
 
-    public void _setParameters(int start, int end, int offset) {
-        mSelectionStart = start;
-        mSelectionEnd = end;
-        mOffset = offset;
+    fun _setParameters(start: Int, end: Int, offset: Int) {
+        mSelectionStart = start
+        mSelectionEnd = end
+        mOffset = offset
     }
 
-    public int _getStart() {
-        return mSelectionStart;
+    fun _getStart(): Int {
+        return mSelectionStart
     }
 
-    public int _getEnd() {
-        return mSelectionEnd;
+    fun _getEnd(): Int {
+        return mSelectionEnd
     }
 
-    public int _getOffset() {
-        return mOffset;
+    fun _getOffset(): Int {
+        return mOffset
     }
 
-    public void _setPlayback(int pos) {
-        mPlaybackPos = pos;
+    fun _setPlayback(pos: Int) {
+        mPlaybackPos = pos
     }
 
-    public void _setListener(WaveformListener listener) {
-        mListener = listener;
+    fun _setListener(listener: WaveformListener?) {
+        mListener = listener
     }
 
-    public void recomputeHeights(float density) {
-        mHeightsAtThisZoomLevel = null;
-        mDensity = density;
-        mTimecodePaint.setTextSize((int) (12 * density));
-
-        invalidate();
+    fun recomputeHeights(density: Float) {
+        mHeightsAtThisZoomLevel = null
+        mDensity = density
+        mTimecodePaint.textSize = (12 * density).toInt().toFloat()
+        invalidate()
     }
 
-    protected void drawWaveformLine(Canvas canvas,
-                                    int x, int y0, int y1,
-                                    Paint paint) {
-        canvas.drawLine(x, y0, x, y1, paint);
+    protected fun drawWaveformLine(
+        canvas: Canvas,
+        x: Int, y0: Int, y1: Int,
+        paint: Paint?
+    ) {
+        canvas.drawLine(x.toFloat(), y0.toFloat(), x.toFloat(), y1.toFloat(), paint!!)
     }
 
-    @Override
-    protected void onDraw(Canvas canvas) {
-        super.onDraw(canvas);
-        if (mSoundFile == null)
-            return;
-
-        if (mHeightsAtThisZoomLevel == null)
-            computeIntsForThisZoomLevel();
+    override fun onDraw(canvas: Canvas) {
+        super.onDraw(canvas)
+        if (mSoundFile == null) return
+        if (mHeightsAtThisZoomLevel == null) computeIntsForThisZoomLevel()
 
         // Draw waveform
-        int measuredWidth = getMeasuredWidth();
-        int measuredHeight = getMeasuredHeight();
-        int start = mOffset;
-        int width = mHeightsAtThisZoomLevel.length - start;
-        int ctr = measuredHeight / 2;
-
-        if (width > measuredWidth)
-            width = measuredWidth;
+        val measuredWidth = measuredWidth
+        val measuredHeight = measuredHeight
+        val start = mOffset
+        var width = mHeightsAtThisZoomLevel!!.size - start
+        val ctr = measuredHeight / 2
+        if (width > measuredWidth) width = measuredWidth
 
         // Draw grid
-        double onePixelInSecs = pixelsToSeconds(1);
-        boolean onlyEveryFiveSecs = (onePixelInSecs > 1.0 / 50.0);
-        double fractionalSecs = mOffset * onePixelInSecs;
-        int integerSecs = (int) fractionalSecs;
-        int i = 0;
+        val onePixelInSecs = pixelsToSeconds(1)
+        val onlyEveryFiveSecs = onePixelInSecs > 1.0 / 50.0
+        var fractionalSecs = mOffset * onePixelInSecs
+        var integerSecs = fractionalSecs.toInt()
+        var i = 0
         while (i < width) {
-            i++;
-            fractionalSecs += onePixelInSecs;
-            int integerSecsNew = (int) fractionalSecs;
+            i++
+            fractionalSecs += onePixelInSecs
+            val integerSecsNew = fractionalSecs.toInt()
             if (integerSecsNew != integerSecs) {
-                integerSecs = integerSecsNew;
-                if (!onlyEveryFiveSecs || 0 == (integerSecs % 5)) {
-                    canvas.drawLine(i, 0, i, measuredHeight, mGridPaint);
+                integerSecs = integerSecsNew
+                if (!onlyEveryFiveSecs || 0 == integerSecs % 5) {
+                    canvas.drawLine(
+                        i.toFloat(),
+                        0f,
+                        i.toFloat(),
+                        measuredHeight.toFloat(),
+                        mGridPaint
+                    )
                 }
             }
         }
 
         // Draw waveform
-        for (i = 0; i < width; i++) {
-            Paint paint;
-            if (i + start >= mSelectionStart &&
-                    i + start < mSelectionEnd) {
-                paint = mSelectedLinePaint;
+        i = 0
+        while (i < width) {
+            var paint: Paint
+            paint = if (i + start >= mSelectionStart &&
+                i + start < mSelectionEnd
+            ) {
+                mSelectedLinePaint
             } else {
-                drawWaveformLine(canvas, i, 0, measuredHeight,
-                        mUnselectedBkgndLinePaint);
-                paint = mUnselectedLinePaint;
+                drawWaveformLine(
+                    canvas, i, 0, measuredHeight,
+                    mUnselectedBkgndLinePaint
+                )
+                mUnselectedLinePaint
             }
             drawWaveformLine(
-                    canvas, i,
-                    ctr - mHeightsAtThisZoomLevel[start + i],
-                    ctr + 1 + mHeightsAtThisZoomLevel[start + i],
-                    paint);
-
+                canvas, i,
+                ctr - mHeightsAtThisZoomLevel!![start + i],
+                ctr + 1 + mHeightsAtThisZoomLevel!![start + i],
+                paint
+            )
             if (i + start == mPlaybackPos) {
-                canvas.drawLine(i, 0, i, measuredHeight, mPlaybackLinePaint);
+                canvas.drawLine(
+                    i.toFloat(),
+                    0f,
+                    i.toFloat(),
+                    measuredHeight.toFloat(),
+                    mPlaybackLinePaint
+                )
             }
+            i++
         }
 
         // If we can see the right edge of the waveform, draw the
         // non-waveform area to the right as unselected
-        for (i = width; i < measuredWidth; i++) {
-            drawWaveformLine(canvas, i, 0, measuredHeight,
-                    mUnselectedBkgndLinePaint);
+        i = width
+        while (i < measuredWidth) {
+            drawWaveformLine(
+                canvas, i, 0, measuredHeight,
+                mUnselectedBkgndLinePaint
+            )
+            i++
         }
 
         // Draw borders
-
-        if (isDrawBorder()) {
+        if (isDrawBorder) {
             canvas.drawLine(
-                    mSelectionStart - mOffset + 0.5f, 0,
-                    mSelectionStart - mOffset + 0.5f, measuredHeight,
-                    mBorderLinePaint);
+                mSelectionStart - mOffset + 0.5f, 0f,
+                mSelectionStart - mOffset + 0.5f, measuredHeight.toFloat(),
+                mBorderLinePaint
+            )
             canvas.drawLine(
-                    mSelectionEnd - mOffset + 0.5f, 0,
-                    mSelectionEnd - mOffset + 0.5f, measuredHeight,
-                    mBorderLinePaint);
+                mSelectionEnd - mOffset + 0.5f, 0f,
+                mSelectionEnd - mOffset + 0.5f, measuredHeight.toFloat(),
+                mBorderLinePaint
+            )
         }
 
         /*// Draw timecode
@@ -461,156 +453,138 @@ public class WaveformView extends View {
                                 (int)(12 * mDensity),
                                 mTimecodePaint);
             }
-        }*/
-
-        if (mListener != null) {
-            mListener.waveformDraw();
+        }*/if (mListener != null) {
+            mListener!!.waveformDraw()
         }
     }
 
     /**
      * Called once when a new sound file is added
      */
-    private void computeDoublesForAllZoomLevels() {
-        int numFrames = mSoundFile._getNumFrames();
-        int[] frameGains = mSoundFile._getFrameGains();
-        double[] smoothedGains = new double[numFrames];
+    private fun computeDoublesForAllZoomLevels() {
+        val numFrames = mSoundFile!!.numFrames
+        val frameGains = mSoundFile!!.frameGains
+        val smoothedGains = DoubleArray(numFrames)
         if (numFrames == 1) {
-            smoothedGains[0] = frameGains[0];
+            smoothedGains[0] = frameGains[0].toDouble()
         } else if (numFrames == 2) {
-            smoothedGains[0] = frameGains[0];
-            smoothedGains[1] = frameGains[1];
+            smoothedGains[0] = frameGains[0].toDouble()
+            smoothedGains[1] = frameGains[1].toDouble()
         } else if (numFrames > 2) {
-            smoothedGains[0] = (double) (
-                    (frameGains[0] / 2.0) +
-                            (frameGains[1] / 2.0));
-            for (int i = 1; i < numFrames - 1; i++) {
-                smoothedGains[i] = (double) (
-                        (frameGains[i - 1] / 3.0) +
-                                (frameGains[i] / 3.0) +
-                                (frameGains[i + 1] / 3.0));
+            smoothedGains[0] = (frameGains[0] / 2.0 + frameGains[1] / 2.0)
+            for (i in 1 until numFrames - 1) {
+                smoothedGains[i] =
+                    (frameGains[i - 1] / 3.0 + frameGains[i] / 3.0 + frameGains[i + 1] / 3.0)
             }
-            smoothedGains[numFrames - 1] = (double) (
-                    (frameGains[numFrames - 2] / 2.0) +
-                            (frameGains[numFrames - 1] / 2.0));
+            smoothedGains[numFrames - 1] =
+                (frameGains[numFrames - 2] / 2.0 + frameGains[numFrames - 1] / 2.0)
         }
 
         // Make sure the range is no more than 0 - 255
-        double maxGain = 1.0;
-        for (int i = 0; i < numFrames; i++) {
+        var maxGain = 1.0
+        for (i in 0 until numFrames) {
             if (smoothedGains[i] > maxGain) {
-                maxGain = smoothedGains[i];
+                maxGain = smoothedGains[i]
             }
         }
-        double scaleFactor = 1.0;
+        var scaleFactor = 1.0
         if (maxGain > 255.0) {
-            scaleFactor = 255 / maxGain;
+            scaleFactor = 255 / maxGain
         }
 
         // Build histogram of 256 bins and figure out the new scaled max
-        maxGain = 0;
-        int gainHist[] = new int[256];
-        for (int i = 0; i < numFrames; i++) {
-            int smoothedGain = (int) (smoothedGains[i] * scaleFactor);
-            if (smoothedGain < 0)
-                smoothedGain = 0;
-            if (smoothedGain > 255)
-                smoothedGain = 255;
-
-            if (smoothedGain > maxGain)
-                maxGain = smoothedGain;
-
-            gainHist[smoothedGain]++;
+        maxGain = 0.0
+        val gainHist = IntArray(256)
+        for (i in 0 until numFrames) {
+            var smoothedGain = (smoothedGains[i] * scaleFactor).toInt()
+            if (smoothedGain < 0) smoothedGain = 0
+            if (smoothedGain > 255) smoothedGain = 255
+            if (smoothedGain > maxGain) maxGain = smoothedGain.toDouble()
+            gainHist[smoothedGain]++
         }
 
         // Re-calibrate the min to be 5%
-        double minGain = 0;
-        int sum = 0;
+        var minGain = 0.0
+        var sum = 0
         while (minGain < 255 && sum < numFrames / 20) {
-            sum += gainHist[(int) minGain];
-            minGain++;
+            sum += gainHist[minGain.toInt()]
+            minGain++
         }
 
         // Re-calibrate the max to be 99%
-        sum = 0;
+        sum = 0
         while (maxGain > 2 && sum < numFrames / 100) {
-            sum += gainHist[(int) maxGain];
-            maxGain--;
+            sum += gainHist[maxGain.toInt()]
+            maxGain--
         }
 
         // Compute the heights
-        double[] heights = new double[numFrames];
-        double range = maxGain - minGain;
-        for (int i = 0; i < numFrames; i++) {
-            double value = (smoothedGains[i] * scaleFactor - minGain) / range;
-            if (value < 0.0)
-                value = 0.0;
-            if (value > 1.0)
-                value = 1.0;
-            heights[i] = value * value;
+        val heights = DoubleArray(numFrames)
+        val range = maxGain - minGain
+        for (i in 0 until numFrames) {
+            var value = (smoothedGains[i] * scaleFactor - minGain) / range
+            if (value < 0.0) value = 0.0
+            if (value > 1.0) value = 1.0
+            heights[i] = value * value
         }
-
-        mNumZoomLevels = 5;
-        mLenByZoomLevel = new int[5];
-        mZoomFactorByZoomLevel = new double[5];
-        mValuesByZoomLevel = new double[5][];
+        mNumZoomLevels = 5
+        mLenByZoomLevel = IntArray(5)
+        mZoomFactorByZoomLevel = DoubleArray(5)
+        mValuesByZoomLevel = arrayOfNulls(5)
 
         // Level 0 is doubled, with interpolated values
-        mLenByZoomLevel[0] = numFrames * 2;
-        mZoomFactorByZoomLevel[0] = 2.0;
-        mValuesByZoomLevel[0] = new double[mLenByZoomLevel[0]];
+        mLenByZoomLevel!![0] = numFrames * 2
+        mZoomFactorByZoomLevel[0] = 2.0
+        mValuesByZoomLevel!![0] = DoubleArray(mLenByZoomLevel!![0])
         if (numFrames > 0) {
-            mValuesByZoomLevel[0][0] = 0.5 * heights[0];
-            mValuesByZoomLevel[0][1] = heights[0];
+            mValuesByZoomLevel!![0]!![0] = 0.5 * heights[0]
+            mValuesByZoomLevel!![0]!![1] = heights[0]
         }
-        for (int i = 1; i < numFrames; i++) {
-            mValuesByZoomLevel[0][2 * i] = 0.5 * (heights[i - 1] + heights[i]);
-            mValuesByZoomLevel[0][2 * i + 1] = heights[i];
+        for (i in 1 until numFrames) {
+            mValuesByZoomLevel!![0]!![2 * i] = 0.5 * (heights[i - 1] + heights[i])
+            mValuesByZoomLevel!![0]!![2 * i + 1] = heights[i]
         }
 
         // Level 1 is normal
-        mLenByZoomLevel[1] = numFrames;
-        mValuesByZoomLevel[1] = new double[mLenByZoomLevel[1]];
-        mZoomFactorByZoomLevel[1] = 1.0;
-        for (int i = 0; i < mLenByZoomLevel[1]; i++) {
-            mValuesByZoomLevel[1][i] = heights[i];
+        mLenByZoomLevel!![1] = numFrames
+        mValuesByZoomLevel!![1] = DoubleArray(mLenByZoomLevel!![1])
+        mZoomFactorByZoomLevel[1] = 1.0
+        for (i in 0 until mLenByZoomLevel!![1]) {
+            mValuesByZoomLevel!![1]!![i] = heights[i]
         }
 
         // 3 more levels are each halved
-        for (int j = 2; j < 5; j++) {
-            mLenByZoomLevel[j] = mLenByZoomLevel[j - 1] / 2;
-            mValuesByZoomLevel[j] = new double[mLenByZoomLevel[j]];
-            mZoomFactorByZoomLevel[j] = mZoomFactorByZoomLevel[j - 1] / 2.0;
-            for (int i = 0; i < mLenByZoomLevel[j]; i++) {
-                mValuesByZoomLevel[j][i] =
-                        0.5 * (mValuesByZoomLevel[j - 1][2 * i] +
-                                mValuesByZoomLevel[j - 1][2 * i + 1]);
+        for (j in 2..4) {
+            mLenByZoomLevel!![j] = mLenByZoomLevel!![j - 1] / 2
+            mValuesByZoomLevel!![j] = DoubleArray(mLenByZoomLevel!![j])
+            mZoomFactorByZoomLevel[j] = mZoomFactorByZoomLevel[j - 1] / 2.0
+            for (i in 0 until mLenByZoomLevel!![j]) {
+                mValuesByZoomLevel!![j]!![i] = 0.5 * (mValuesByZoomLevel!![j - 1]!![2 * i] +
+                        mValuesByZoomLevel!![j - 1]!![2 * i + 1])
             }
         }
-
-        if (numFrames > 5000) {
-            mZoomLevel = 3;
+        mZoomLevel = if (numFrames > 5000) {
+            3
         } else if (numFrames > 1000) {
-            mZoomLevel = 2;
+            2
         } else if (numFrames > 300) {
-            mZoomLevel = 1;
+            1
         } else {
-            mZoomLevel = 0;
+            0
         }
-
-        mInitialized = true;
+        this.isInitialized = true
     }
 
     /**
      * Called the first time we need to draw when the zoom level has changed
      * or the screen is resized
      */
-    private void computeIntsForThisZoomLevel() {
-        int halfHeight = (getMeasuredHeight() / 2) - 1;
-        mHeightsAtThisZoomLevel = new int[mLenByZoomLevel[mZoomLevel]];
-        for (int i = 0; i < mLenByZoomLevel[mZoomLevel]; i++) {
-            mHeightsAtThisZoomLevel[i] =
-                    (int) (mValuesByZoomLevel[mZoomLevel][i] * halfHeight);
+    private fun computeIntsForThisZoomLevel() {
+        val halfHeight = measuredHeight / 2 - 1
+        mHeightsAtThisZoomLevel = IntArray(mLenByZoomLevel!![mZoomLevel])
+        for (i in 0 until mLenByZoomLevel!![mZoomLevel]) {
+            mHeightsAtThisZoomLevel!![i] =
+                (mValuesByZoomLevel!![mZoomLevel]!![i] * halfHeight).toInt()
         }
     }
 }

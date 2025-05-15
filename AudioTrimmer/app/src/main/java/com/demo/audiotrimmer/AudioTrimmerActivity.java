@@ -957,7 +957,7 @@ public class AudioTrimmerActivity extends AppCompatActivity implements View.OnCl
                 File outFile = new File(outPath);
                 try {
                     // Write the new file
-                    mRecordedSoundFile.WriteFile(outFile, startFrame, endFrame - startFrame);
+                    mRecordedSoundFile.writeFile(outFile, startFrame, endFrame - startFrame);
                 } catch (Exception e) {
                     // log the error and try to create a .wav file instead
                     if (outFile.exists()) {

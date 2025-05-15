@@ -13,168 +13,158 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.demo.audiotrimmer.customAudioViews
 
-package com.demo.audiotrimmer.customAudioViews;
+import android.media.AudioFormat
+import android.media.AudioManager
+import android.media.AudioTrack
+import java.nio.ShortBuffer
 
-import android.media.AudioFormat;
-import android.media.AudioManager;
-import android.media.AudioTrack;
-
-import java.nio.ShortBuffer;
-
-public class SamplePlayer {
-    public interface OnCompletionListener {
-        public void onCompletion();
+class SamplePlayer(
+    private val mSamples: ShortBuffer?,
+    private val mSampleRate: Int,
+    private val mChannels: Int, // Number of samples per channel.
+    private val mNumSamples: Int
+) {
+    interface OnCompletionListener {
+        fun onCompletion()
     }
 
-    ;
+    private val mAudioTrack: AudioTrack
+    private val mBuffer: ShortArray
+    private var mPlaybackStart // Start offset, in samples.
+            = 0
+    private var mPlayThread: Thread? = null
+    private var mKeepPlaying: Boolean
+    private var mListener: OnCompletionListener? = null
 
-    private ShortBuffer mSamples;
-    private int mSampleRate;
-    private int mChannels;
-    private int mNumSamples;  // Number of samples per channel.
-    private AudioTrack mAudioTrack;
-    private short[] mBuffer;
-    private int mPlaybackStart;  // Start offset, in samples.
-    private Thread mPlayThread;
-    private boolean mKeepPlaying;
-    private OnCompletionListener mListener;
-
-    public SamplePlayer(ShortBuffer samples, int sampleRate, int channels, int numSamples) {
-        mSamples = samples;
-        mSampleRate = sampleRate;
-        mChannels = channels;
-        mNumSamples = numSamples;
-        mPlaybackStart = 0;
-
-        int bufferSize = AudioTrack.getMinBufferSize(
-                mSampleRate,
-                mChannels == 1 ? AudioFormat.CHANNEL_OUT_MONO : AudioFormat.CHANNEL_OUT_STEREO,
-                AudioFormat.ENCODING_PCM_16BIT);
+    init {
+        var bufferSize = AudioTrack.getMinBufferSize(
+            mSampleRate,
+            if (mChannels == 1) AudioFormat.CHANNEL_OUT_MONO else AudioFormat.CHANNEL_OUT_STEREO,
+            AudioFormat.ENCODING_PCM_16BIT
+        )
         // make sure minBufferSize can contain at least 1 second of audio (16 bits sample).
         if (bufferSize < mChannels * mSampleRate * 2) {
-            bufferSize = mChannels * mSampleRate * 2;
+            bufferSize = mChannels * mSampleRate * 2
         }
-        mBuffer = new short[bufferSize / 2]; // bufferSize is in Bytes.
-        mAudioTrack = new AudioTrack(
-                AudioManager.STREAM_MUSIC,
-                mSampleRate,
-                mChannels == 1 ? AudioFormat.CHANNEL_OUT_MONO : AudioFormat.CHANNEL_OUT_STEREO,
-                AudioFormat.ENCODING_PCM_16BIT,
-                mBuffer.length * 2,
-                AudioTrack.MODE_STREAM);
+        mBuffer = ShortArray(bufferSize / 2) // bufferSize is in Bytes.
+        mAudioTrack = AudioTrack(
+            AudioManager.STREAM_MUSIC,
+            mSampleRate,
+            if (mChannels == 1) AudioFormat.CHANNEL_OUT_MONO else AudioFormat.CHANNEL_OUT_STEREO,
+            AudioFormat.ENCODING_PCM_16BIT,
+            mBuffer.size * 2,
+            AudioTrack.MODE_STREAM
+        )
         // Check when player played all the given data and notify user if mListener is set.
-        mAudioTrack.setNotificationMarkerPosition(mNumSamples - 1);  // Set the marker to the end.
+        mAudioTrack.setNotificationMarkerPosition(mNumSamples - 1) // Set the marker to the end.
         mAudioTrack.setPlaybackPositionUpdateListener(
-                new AudioTrack.OnPlaybackPositionUpdateListener() {
-                    @Override
-                    public void onPeriodicNotification(AudioTrack track) {
+            object : AudioTrack.OnPlaybackPositionUpdateListener {
+                override fun onPeriodicNotification(track: AudioTrack) {}
+                override fun onMarkerReached(track: AudioTrack) {
+                    stop()
+                    if (mListener != null) {
+                        mListener!!.onCompletion()
                     }
-
-                    @Override
-                    public void onMarkerReached(AudioTrack track) {
-                        stop();
-                        if (mListener != null) {
-                            mListener.onCompletion();
-                        }
-                    }
-                });
-        mPlayThread = null;
-        mKeepPlaying = true;
-        mListener = null;
+                }
+            })
+        mPlayThread = null
+        mKeepPlaying = true
+        mListener = null
     }
 
-    public SamplePlayer(SoundFile sf) {
-        this(sf._getSamples(), sf._getSampleRate(), sf._getChannels(), sf._getNumSamples());
+    constructor(sf: SoundFile) : this(
+        sf.decodedSamples,
+        sf.sampleRate,
+        sf.channels,
+        sf.numSamples
+    )
+
+    fun _setOnCompletionListener(listener: OnCompletionListener?) {
+        mListener = listener
     }
 
-    public void _setOnCompletionListener(OnCompletionListener listener) {
-        mListener = listener;
-    }
+    val isPlaying: Boolean
+        get() = mAudioTrack.playState == AudioTrack.PLAYSTATE_PLAYING
+    val isPaused: Boolean
+        get() = mAudioTrack.playState == AudioTrack.PLAYSTATE_PAUSED
 
-    public boolean isPlaying() {
-        return mAudioTrack.getPlayState() == AudioTrack.PLAYSTATE_PLAYING;
-    }
-
-    public boolean isPaused() {
-        return mAudioTrack.getPlayState() == AudioTrack.PLAYSTATE_PAUSED;
-    }
-
-    public void start() {
-        if (isPlaying()) {
-            return;
+    fun start() {
+        if (isPlaying) {
+            return
         }
-        mKeepPlaying = true;
-        mAudioTrack.flush();
-        mAudioTrack.play();
+        mKeepPlaying = true
+        mAudioTrack.flush()
+        mAudioTrack.play()
         // Setting thread feeding the audio samples to the audio hardware.
         // (Assumes mChannels = 1 or 2).
-        mPlayThread = new Thread() {
-            public void run() {
-                int position = mPlaybackStart * mChannels;
-                mSamples.position(position);
-                int limit = mNumSamples * mChannels;
+        mPlayThread = object : Thread() {
+            override fun run() {
+                val position = mPlaybackStart * mChannels
+                mSamples!!.position(position)
+                val limit = mNumSamples * mChannels
                 while (mSamples.position() < limit && mKeepPlaying) {
-                    int numSamplesLeft = limit - mSamples.position();
-                    if (numSamplesLeft >= mBuffer.length) {
-                        mSamples.get(mBuffer);
+                    val numSamplesLeft = limit - mSamples.position()
+                    if (numSamplesLeft >= mBuffer.size) {
+                        mSamples[mBuffer]
                     } else {
-                        for (int i = numSamplesLeft; i < mBuffer.length; i++) {
-                            mBuffer[i] = 0;
+                        for (i in numSamplesLeft until mBuffer.size) {
+                            mBuffer[i] = 0
                         }
-                        mSamples.get(mBuffer, 0, numSamplesLeft);
+                        mSamples[mBuffer, 0, numSamplesLeft]
                     }
                     // TODO(nfaralli): use the write method that takes a ByteBuffer as argument.
-                    mAudioTrack.write(mBuffer, 0, mBuffer.length);
+                    mAudioTrack.write(mBuffer, 0, mBuffer.size)
                 }
             }
-        };
-        mPlayThread.start();
+        }
+        mPlayThread?.start()
     }
 
-    public void pause() {
-        if (isPlaying()) {
-            mAudioTrack.pause();
+    fun pause() {
+        if (isPlaying) {
+            mAudioTrack.pause()
             // mAudioTrack.write() should block if it cannot write.
         }
     }
 
-    public void stop() {
-        if (isPlaying() || isPaused()) {
-            mKeepPlaying = false;
-            mAudioTrack.pause();  // pause() stops the playback immediately.
-            mAudioTrack.stop();   // Unblock mAudioTrack.write() to avoid deadlocks.
+    fun stop() {
+        if (isPlaying || isPaused) {
+            mKeepPlaying = false
+            mAudioTrack.pause() // pause() stops the playback immediately.
+            mAudioTrack.stop() // Unblock mAudioTrack.write() to avoid deadlocks.
             if (mPlayThread != null) {
                 try {
-                    mPlayThread.join();
-                } catch (InterruptedException e) {
+                    mPlayThread!!.join()
+                } catch (e: InterruptedException) {
                 }
-                mPlayThread = null;
+                mPlayThread = null
             }
-            mAudioTrack.flush();  // just in case...
+            mAudioTrack.flush() // just in case...
         }
     }
 
-    public void release() {
-        stop();
-        mAudioTrack.release();
+    fun release() {
+        stop()
+        mAudioTrack.release()
     }
 
-    public void seekTo(int msec) {
-        boolean wasPlaying = isPlaying();
-        stop();
-        mPlaybackStart = (int) (msec * (mSampleRate / 1000.0));
+    fun seekTo(msec: Int) {
+        val wasPlaying = isPlaying
+        stop()
+        mPlaybackStart = (msec * (mSampleRate / 1000.0)).toInt()
         if (mPlaybackStart > mNumSamples) {
-            mPlaybackStart = mNumSamples;  // Nothing to play...
+            mPlaybackStart = mNumSamples // Nothing to play...
         }
-        mAudioTrack.setNotificationMarkerPosition(mNumSamples - 1 - mPlaybackStart);
+        mAudioTrack.setNotificationMarkerPosition(mNumSamples - 1 - mPlaybackStart)
         if (wasPlaying) {
-            start();
+            start()
         }
     }
 
-    public int _getCurrentPosition() {
-        return (int) ((mPlaybackStart + mAudioTrack.getPlaybackHeadPosition()) *
-                (1000.0 / mSampleRate));
+    fun _getCurrentPosition(): Int {
+        return ((mPlaybackStart + mAudioTrack.playbackHeadPosition) *
+                (1000.0 / mSampleRate)).toInt()
     }
 }
