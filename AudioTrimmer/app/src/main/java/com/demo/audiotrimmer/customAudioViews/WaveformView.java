@@ -52,7 +52,7 @@ public class WaveformView extends View {
         return isDrawBorder;
     }
 
-    public void setIsDrawBorder(boolean isDrawBorder) {
+    public void _setIsDrawBorder(boolean isDrawBorder) {
         this.isDrawBorder = isDrawBorder;
     }
 
@@ -213,10 +213,10 @@ public class WaveformView extends View {
         return mSoundFile != null;
     }
 
-    public void setSoundFile(SoundFile soundFile) {
+    public void _setSoundFile(SoundFile soundFile) {
         mSoundFile = soundFile;
-        mSampleRate = mSoundFile.getSampleRate();
-        mSamplesPerFrame = mSoundFile.getSamplesPerFrame();
+        mSampleRate = mSoundFile._getSampleRate();
+        mSamplesPerFrame = mSoundFile._getSamplesPerFrame();
         computeDoublesForAllZoomLevels();
         mHeightsAtThisZoomLevel = null;
     }
@@ -225,11 +225,11 @@ public class WaveformView extends View {
         return mInitialized;
     }
 
-    public int getZoomLevel() {
+    public int _getZoomLevel() {
         return mZoomLevel;
     }
 
-    public void setZoomLevel(int zoomLevel) {
+    public void _setZoomLevel(int zoomLevel) {
         while (mZoomLevel > zoomLevel) {
             zoomIn();
         }
@@ -306,29 +306,29 @@ public class WaveformView extends View {
                 (mSampleRate * z) + 0.5);
     }
 
-    public void setParameters(int start, int end, int offset) {
+    public void _setParameters(int start, int end, int offset) {
         mSelectionStart = start;
         mSelectionEnd = end;
         mOffset = offset;
     }
 
-    public int getStart() {
+    public int _getStart() {
         return mSelectionStart;
     }
 
-    public int getEnd() {
+    public int _getEnd() {
         return mSelectionEnd;
     }
 
-    public int getOffset() {
+    public int _getOffset() {
         return mOffset;
     }
 
-    public void setPlayback(int pos) {
+    public void _setPlayback(int pos) {
         mPlaybackPos = pos;
     }
 
-    public void setListener(WaveformListener listener) {
+    public void _setListener(WaveformListener listener) {
         mListener = listener;
     }
 
@@ -472,8 +472,8 @@ public class WaveformView extends View {
      * Called once when a new sound file is added
      */
     private void computeDoublesForAllZoomLevels() {
-        int numFrames = mSoundFile.getNumFrames();
-        int[] frameGains = mSoundFile.getFrameGains();
+        int numFrames = mSoundFile._getNumFrames();
+        int[] frameGains = mSoundFile._getFrameGains();
         double[] smoothedGains = new double[numFrames];
         if (numFrames == 1) {
             smoothedGains[0] = frameGains[0];

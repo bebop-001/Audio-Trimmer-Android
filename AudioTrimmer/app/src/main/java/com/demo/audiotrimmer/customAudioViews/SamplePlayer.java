@@ -85,10 +85,10 @@ public class SamplePlayer {
     }
 
     public SamplePlayer(SoundFile sf) {
-        this(sf.getSamples(), sf.getSampleRate(), sf.getChannels(), sf.getNumSamples());
+        this(sf._getSamples(), sf._getSampleRate(), sf._getChannels(), sf._getNumSamples());
     }
 
-    public void setOnCompletionListener(OnCompletionListener listener) {
+    public void _setOnCompletionListener(OnCompletionListener listener) {
         mListener = listener;
     }
 
@@ -173,7 +173,7 @@ public class SamplePlayer {
         }
     }
 
-    public int getCurrentPosition() {
+    public int _getCurrentPosition() {
         return (int) ((mPlaybackStart + mAudioTrack.getPlaybackHeadPosition()) *
                 (1000.0 / mSampleRate));
     }

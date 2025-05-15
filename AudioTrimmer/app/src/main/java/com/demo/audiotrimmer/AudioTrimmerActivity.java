@@ -145,15 +145,15 @@ public class AudioTrimmerActivity extends AppCompatActivity implements View.OnCl
 
         mRecordedSoundFile = null;
         mKeyDown = false;
-        audioWaveform.setListener(this);
+        audioWaveform._setListener(this);
 
-        markerStart.setListener(this);
+        markerStart._setListener(this);
         markerStart.setAlpha(1f);
         markerStart.setFocusable(true);
         markerStart.setFocusableInTouchMode(true);
         mStartVisible = true;
 
-        markerEnd.setListener(this);
+        markerEnd._setListener(this);
         markerEnd.setAlpha(1f);
         markerEnd.setFocusable(true);
         markerEnd.setFocusableInTouchMode(true);
@@ -223,7 +223,7 @@ public class AudioTrimmerActivity extends AppCompatActivity implements View.OnCl
                 txtAudioRecord.setBackgroundResource(R.drawable.ic_stop_btn1);
                 txtAudioRecordTime.setVisibility(View.VISIBLE);
                 startRecording();
-                mRecordingLastUpdateTime = Utility.getCurrentTime();
+                mRecordingLastUpdateTime = Utility._getCurrentTime();
                 mRecordingKeepGoing = true;
             }
         } else if (view == txtAudioCancel) {
@@ -236,7 +236,7 @@ public class AudioTrimmerActivity extends AppCompatActivity implements View.OnCl
             txtAudioRecord.setBackgroundResource(R.drawable.ic_stop_btn1);
             txtAudioRecordTime.setVisibility(View.VISIBLE);
             startRecording();
-            mRecordingLastUpdateTime = Utility.getCurrentTime();
+            mRecordingLastUpdateTime = Utility._getCurrentTime();
             mRecordingKeepGoing = true;
 //            txtAudioCrop.setBackgroundResource(R.drawable.ic_crop_btn);
             txtAudioDone.setVisibility(View.GONE);
@@ -282,7 +282,7 @@ public class AudioTrimmerActivity extends AppCompatActivity implements View.OnCl
             }
 
         } else if (view == txtAudioReset) {
-            audioWaveform.setIsDrawBorder(true);
+            audioWaveform._setIsDrawBorder(true);
             mPlayer = new SamplePlayer(mRecordedSoundFile);
             finishOpeningSoundFile(mRecordedSoundFile, 1);
         } else if (view == txtAudioCrop) {
@@ -292,7 +292,7 @@ public class AudioTrimmerActivity extends AppCompatActivity implements View.OnCl
             txtAudioDone.setVisibility(View.VISIBLE);
             txtAudioReset.setVisibility(View.VISIBLE);
 
-            audioWaveform.setIsDrawBorder(true);
+            audioWaveform._setIsDrawBorder(true);
             audioWaveform.setBackgroundColor(getResources().getColor(R.color.colorWaveformBg));
             markerStart.setVisibility(View.VISIBLE);
             markerEnd.setVisibility(View.VISIBLE);
@@ -326,7 +326,7 @@ public class AudioTrimmerActivity extends AppCompatActivity implements View.OnCl
         final SoundFile.ProgressListener listener =
                 new SoundFile.ProgressListener() {
                     public boolean reportProgress(double elapsedTime) {
-                        long now = Utility.getCurrentTime();
+                        long now = Utility._getCurrentTime();
                         if (now - mRecordingLastUpdateTime > 5) {
                             mRecordingTime = elapsedTime;
                             // Only UI thread can update Views such as TextViews.
@@ -368,7 +368,7 @@ public class AudioTrimmerActivity extends AppCompatActivity implements View.OnCl
                 Runnable runnable = new Runnable() {
                     public void run() {
 
-                        audioWaveform.setIsDrawBorder(true);
+                        audioWaveform._setIsDrawBorder(true);
                         finishOpeningSoundFile(mRecordedSoundFile, 0);
                         txtAudioRecord.setBackgroundResource(R.drawable.ic_stop_btn1);
                         txtAudioRecordTime.setVisibility(View.INVISIBLE);
@@ -399,7 +399,7 @@ public class AudioTrimmerActivity extends AppCompatActivity implements View.OnCl
      */
     private void finishOpeningSoundFile(SoundFile mSoundFile, int isReset) {
         audioWaveform.setVisibility(View.VISIBLE);
-        audioWaveform.setSoundFile(mSoundFile);
+        audioWaveform._setSoundFile(mSoundFile);
         audioWaveform.recomputeHeights(mDensity);
 
         mMaxPos = audioWaveform.maxPos();
@@ -436,9 +436,9 @@ public class AudioTrimmerActivity extends AppCompatActivity implements View.OnCl
 
     private synchronized void updateDisplay() {
         if (mIsPlaying) {
-            int now = mPlayer.getCurrentPosition();
+            int now = mPlayer._getCurrentPosition();
             int frames = audioWaveform.millisecsToPixels(now);
-            audioWaveform.setPlayback(frames);
+            audioWaveform._setPlayback(frames);
             Log.e("mWidth >> ", "" + mWidth);
             setOffsetGoalNoUpdate(frames - mWidth / 2);
             if (now >= mPlayEndMillSec) {
@@ -488,7 +488,7 @@ public class AudioTrimmerActivity extends AppCompatActivity implements View.OnCl
             }
         }
 
-        audioWaveform.setParameters(mStartPos, mEndPos, mOffset);
+        audioWaveform._setParameters(mStartPos, mEndPos, mOffset);
         audioWaveform.invalidate();
 
         markerStart.setContentDescription(
@@ -858,7 +858,7 @@ public class AudioTrimmerActivity extends AppCompatActivity implements View.OnCl
         if (mPlayer != null && mPlayer.isPlaying()) {
             mPlayer.pause();
         }
-        audioWaveform.setPlayback(-1);
+        audioWaveform._setPlayback(-1);
         mIsPlaying = false;
     }
 
@@ -882,7 +882,7 @@ public class AudioTrimmerActivity extends AppCompatActivity implements View.OnCl
             } else {
                 mPlayEndMillSec = audioWaveform.pixelsToMillisecs(mEndPos);
             }
-            mPlayer.setOnCompletionListener(new SamplePlayer.OnCompletionListener() {
+            mPlayer._setOnCompletionListener(new SamplePlayer.OnCompletionListener() {
                 @Override
                 public void onCompletion() {
                     handlePause();
@@ -1086,7 +1086,7 @@ public class AudioTrimmerActivity extends AppCompatActivity implements View.OnCl
     private void loadFromFile(String mFilename) {
         mFile = new File(mFilename);
 //        SongMetadataReader metadataReader = new SongMetadataReader(this, mFilename);
-        mLoadingLastUpdateTime = Utility.getCurrentTime();
+        mLoadingLastUpdateTime = Utility._getCurrentTime();
         mLoadingKeepGoing = true;
         mProgressDialog = new ProgressDialog(this);
         mProgressDialog.setProgressStyle(ProgressDialog.STYLE_HORIZONTAL);
@@ -1097,7 +1097,7 @@ public class AudioTrimmerActivity extends AppCompatActivity implements View.OnCl
                 new SoundFile.ProgressListener() {
                     public boolean reportProgress(double fractionComplete) {
 
-                        long now = Utility.getCurrentTime();
+                        long now = Utility._getCurrentTime();
                         if (now - mLoadingLastUpdateTime > 100) {
                             mProgressDialog.setProgress(
                                     (int) (mProgressDialog.getMax() * fractionComplete));
@@ -1138,7 +1138,7 @@ public class AudioTrimmerActivity extends AppCompatActivity implements View.OnCl
                         public void run() {
                             audioWaveform.setVisibility(View.INVISIBLE);
                             audioWaveform.setBackgroundColor(getResources().getColor(R.color.waveformUnselectedBackground));
-                            audioWaveform.setIsDrawBorder(false);
+                            audioWaveform._setIsDrawBorder(false);
                             finishOpeningSoundFile(mLoadedSoundFile, 0);
                         }
                     };

@@ -115,7 +115,7 @@ public class SoundFile {
             return null;
         }
         SoundFile soundFile = new SoundFile();
-        soundFile.setProgressListener(progressListener);
+        soundFile._setProgressListener(progressListener);
         soundFile.ReadFile(f);
         return soundFile;
     }
@@ -127,51 +127,51 @@ public class SoundFile {
             return null;
         }
         SoundFile soundFile = new SoundFile();
-        soundFile.setProgressListener(progressListener);
+        soundFile._setProgressListener(progressListener);
         soundFile.RecordAudio();
         return soundFile;
     }
 
-    public String getFiletype() {
+    public String _getFiletype() {
         return mFileType;
     }
 
-    public int getFileSizeBytes() {
+    public int _getFileSizeBytes() {
         return mFileSize;
     }
 
-    public int getAvgBitrateKbps() {
+    public int _getAvgBitrateKbps() {
         return mAvgBitRate;
     }
 
-    public int getSampleRate() {
+    public int _getSampleRate() {
         return mSampleRate;
     }
 
-    public int getChannels() {
+    public int _getChannels() {
         return mChannels;
     }
 
-    public int getNumSamples() {
+    public int _getNumSamples() {
         return mNumSamples;  // Number of samples per channel.
     }
 
     // Should be removed when the app will use directly the samples instead of the frames.
-    public int getNumFrames() {
+    public int _getNumFrames() {
         return mNumFrames;
     }
 
     // Should be removed when the app will use directly the samples instead of the frames.
-    public int getSamplesPerFrame() {
+    public int _getSamplesPerFrame() {
         return 1024;  // just a fixed value here...
     }
 
     // Should be removed when the app will use directly the samples instead of the frames.
-    public int[] getFrameGains() {
+    public int[] _getFrameGains() {
         return mFrameGains;
     }
 
-    public ShortBuffer getSamples() {
+    public ShortBuffer _getSamples() {
         if (mDecodedSamples != null) {
             return mDecodedSamples;
 //            return mDecodedSamples.asReadOnlyBuffer();
@@ -184,7 +184,7 @@ public class SoundFile {
     private SoundFile() {
     }
 
-    private void setProgressListener(ProgressListener progressListener) {
+    private void _setProgressListener(ProgressListener progressListener) {
         mProgressListener = progressListener;
     }
 
@@ -358,8 +358,8 @@ public class SoundFile {
         codec = null;
 
         // Temporary hack to make it work with the old version.
-        mNumFrames = mNumSamples / getSamplesPerFrame();
-        if (mNumSamples % getSamplesPerFrame() != 0) {
+        mNumFrames = mNumSamples / _getSamplesPerFrame();
+        if (mNumSamples % _getSamplesPerFrame() != 0) {
             mNumFrames++;
         }
         mFrameGains = new int[mNumFrames];
@@ -368,10 +368,10 @@ public class SoundFile {
         int j;
         int gain, value;
         int frameLens = (int) ((1000 * mAvgBitRate / 8) *
-                ((float) getSamplesPerFrame() / mSampleRate));
+                ((float) _getSamplesPerFrame() / mSampleRate));
         for (i = 0; i < mNumFrames; i++) {
             gain = -1;
-            for (j = 0; j < getSamplesPerFrame(); j++) {
+            for (j = 0; j < _getSamplesPerFrame(); j++) {
                 value = 0;
                 for (int k = 0; k < mChannels; k++) {
                     if (mDecodedSamples.remaining() > 0) {
@@ -386,7 +386,7 @@ public class SoundFile {
             mFrameGains[i] = (int) Math.sqrt(gain);  // here gain = sqrt(max value of 1st channel)...
             mFrameLens[i] = frameLens;  // totally not accurate...
             mFrameOffsets[i] = (int) (i * (1000 * mAvgBitRate / 8) *  //  = i * frameLens
-                    ((float) getSamplesPerFrame() / mSampleRate));
+                    ((float) _getSamplesPerFrame() / mSampleRate));
         }
         mDecodedSamples.rewind();
         // DumpSamples();  // Uncomment this line to dump the samples in a TSV file.
@@ -460,8 +460,8 @@ public class SoundFile {
         mAvgBitRate = mSampleRate * 16 / 1000;
 
         // Temporary hack to make it work with the old version.
-        mNumFrames = mNumSamples / getSamplesPerFrame();
-        if (mNumSamples % getSamplesPerFrame() != 0) {
+        mNumFrames = mNumSamples / _getSamplesPerFrame();
+        if (mNumSamples % _getSamplesPerFrame() != 0) {
             mNumFrames++;
         }
         mFrameGains = new int[mNumFrames];
@@ -471,7 +471,7 @@ public class SoundFile {
         int gain, value;
         for (i = 0; i < mNumFrames; i++) {
             gain = -1;
-            for (j = 0; j < getSamplesPerFrame(); j++) {
+            for (j = 0; j < _getSamplesPerFrame(); j++) {
                 if (mDecodedSamples.remaining() > 0) {
                     value = Math.abs(mDecodedSamples.get());
                 } else {
@@ -490,8 +490,8 @@ public class SoundFile {
     // should be removed in the near future...
     public void WriteFile(File outputFile, int startFrame, int numFrames)
             throws IOException {
-        float startTime = (float) startFrame * getSamplesPerFrame() / mSampleRate;
-        float endTime = (float) (startFrame + numFrames) * getSamplesPerFrame() / mSampleRate;
+        float startTime = (float) startFrame * _getSamplesPerFrame() / mSampleRate;
+        float endTime = (float) (startFrame + numFrames) * _getSamplesPerFrame() / mSampleRate;
         WriteFile(outputFile, startTime, endTime);
     }
 
@@ -663,8 +663,8 @@ public class SoundFile {
     // should be removed in the near future...
     public void WriteWAVFile(File outputFile, int startFrame, int numFrames)
             throws IOException {
-        float startTime = (float) startFrame * getSamplesPerFrame() / mSampleRate;
-        float endTime = (float) (startFrame + numFrames) * getSamplesPerFrame() / mSampleRate;
+        float startTime = (float) startFrame * _getSamplesPerFrame() / mSampleRate;
+        float endTime = (float) (startFrame + numFrames) * _getSamplesPerFrame() / mSampleRate;
         WriteWAVFile(outputFile, startTime, endTime);
     }
 
@@ -675,7 +675,7 @@ public class SoundFile {
 
         // Start by writing the RIFF header.
         FileOutputStream outputStream = new FileOutputStream(outputFile);
-        outputStream.write(WAVHeader.getWAVHeader(mSampleRate, mChannels, numSamples));
+        outputStream.write(WAVHeader._getWAVHeader(mSampleRate, mChannels, numSamples));
 
         // Write the samples to the file, 1024 at a time.
         byte buffer[] = new byte[1024 * mChannels * 2];  // Each sample is coded with a short.

@@ -36,7 +36,7 @@ public class SongMetadataReader {
     public SongMetadataReader(Activity activity, String filename) {
         mActivity = activity;
         mFilename = filename;
-        mTitle = getBasename(filename);
+        mTitle = _getBasename(filename);
         try {
             ReadMetadata();
         } catch (Exception e) {
@@ -84,20 +84,20 @@ public class SongMetadataReader {
                 MediaStore.Audio.Media.DATA + " LIKE \"" + mFilename + "\"",
                 null, null);
         if (c.getCount() == 0) {
-            mTitle = getBasename(mFilename);
+            mTitle = _getBasename(mFilename);
             mArtist = "";
             mAlbum = "";
             mYear = -1;
             return;
         }
         c.moveToFirst();
-        mTitle = getStringFromColumn(c, MediaStore.Audio.Media.TITLE);
+        mTitle = _getStringFromColumn(c, MediaStore.Audio.Media.TITLE);
         if (mTitle == null || mTitle.length() == 0) {
-            mTitle = getBasename(mFilename);
+            mTitle = _getBasename(mFilename);
         }
-        mArtist = getStringFromColumn(c, MediaStore.Audio.Media.ARTIST);
-        mAlbum = getStringFromColumn(c, MediaStore.Audio.Media.ALBUM);
-        mYear = getIntegerFromColumn(c, MediaStore.Audio.Media.YEAR);
+        mArtist = _getStringFromColumn(c, MediaStore.Audio.Media.ARTIST);
+        mAlbum = _getStringFromColumn(c, MediaStore.Audio.Media.ALBUM);
+        mYear = _getIntegerFromColumn(c, MediaStore.Audio.Media.YEAR);
         c.close();
     }
 
@@ -113,7 +113,7 @@ public class SongMetadataReader {
                         .toString());
     }
 
-    private String getStringFromColumn(Cursor c, String columnName) {
+    private String _getStringFromColumn(Cursor c, String columnName) {
         int index = c.getColumnIndexOrThrow(columnName);
         String value = c.getString(index);
         if (value != null && value.length() > 0) {
@@ -123,7 +123,7 @@ public class SongMetadataReader {
         }
     }
 
-    private int getIntegerFromColumn(Cursor c, String columnName) {
+    private int _getIntegerFromColumn(Cursor c, String columnName) {
         int index = c.getColumnIndexOrThrow(columnName);
         Integer value = c.getInt(index);
         if (value != null) {
@@ -133,7 +133,7 @@ public class SongMetadataReader {
         }
     }
 
-    private String getBasename(String filename) {
+    private String _getBasename(String filename) {
         return filename.substring(filename.lastIndexOf('/') + 1,
                 filename.lastIndexOf('.'));
     }

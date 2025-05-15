@@ -29,14 +29,10 @@ public class WAVHeader {
         mNumSamples = numSamples;
         mNumBytesPerSample = 2 * mChannels;  // assuming 2 bytes per sample (for 1 channel)
         mHeader = null;
-        setHeader();
+        _setHeader();
     }
 
-    public byte[] getWAVHeader() {
-        return mHeader;
-    }
-
-    public static byte[] getWAVHeader(int sampleRate, int numChannels, int numSamples) {
+    public static byte[] _getWAVHeader(int sampleRate, int numChannels, int numSamples) {
         return new WAVHeader(sampleRate, numChannels, numSamples).mHeader;
     }
 
@@ -63,7 +59,7 @@ public class WAVHeader {
         return str;
     }
 
-    private void setHeader() {
+    private void _setHeader() {
         byte[] header = new byte[46];
         int offset = 0;
         int size;
