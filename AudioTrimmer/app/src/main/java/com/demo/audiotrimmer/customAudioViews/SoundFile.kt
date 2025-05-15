@@ -94,14 +94,14 @@ class SoundFile private constructor() {
 
     @Throws(FileNotFoundException::class, IOException::class, InvalidInputException::class)
     private fun readFile(inputFile: File) {
-        var extractor: MediaExtractor? = MediaExtractor()
+        val extractor = MediaExtractor()
         var format: MediaFormat? = null
         mInputFile = inputFile
         val components =
             mInputFile!!.path.split("\\.".toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()
         fileType = components[components.size - 1]
         fileSize = mInputFile!!.length().toInt()
-        extractor!!.setDataSource(mInputFile!!.path)
+        extractor.setDataSource(mInputFile!!.path)
         val numTracks = extractor.trackCount
         // find and select the first audio track present in the file.
         var i = 0
@@ -121,9 +121,9 @@ class SoundFile private constructor() {
         // Expected total number of samples per channel.
         val expectedNumSamples =
             (format.getLong(MediaFormat.KEY_DURATION) / 1000000f * sampleRate + 0.5f).toInt()
-        var codec: MediaCodec? =
-            MediaCodec.createDecoderByType(format.getString(MediaFormat.KEY_MIME)!!)
-        codec!!.configure(format, null, null, 0)
+        val codec =  MediaCodec.createDecoderByType(
+            format.getString(MediaFormat.KEY_MIME)!!)
+        codec.configure(format, null, null, 0)
         codec.start()
         var decodedSamplesSize = 0 // size of the output buffer containing decoded samples.
         var decodedSamples: ByteArray? = null
@@ -143,9 +143,9 @@ class SoundFile private constructor() {
         var firstSampleData = true
         while (true) {
             // read data from file and feed it to the decoder input buffers.
-            val inputBufferIndex = codec!!.dequeueInputBuffer(100)
+            val inputBufferIndex = codec.dequeueInputBuffer(100)
             if (!done_reading && inputBufferIndex >= 0) {
-                sample_size = extractor!!.readSampleData(inputBuffers[inputBufferIndex], 0)
+                sample_size = extractor.readSampleData(inputBuffers[inputBufferIndex], 0)
                 if (firstSampleData && format.getString(MediaFormat.KEY_MIME) == "audio/mp4a-latm" && sample_size == 2) {
                     // For some reasons on some devices (e.g. the Samsung S3) you should not
                     // provide the first two bytes of an AAC stream, otherwise the MediaCodec will
@@ -171,10 +171,8 @@ class SoundFile private constructor() {
                             // We are asked to stop reading the file. Returning immediately. The
                             // SoundFile object is invalid and should NOT be used afterward!
                             extractor.release()
-                            extractor = null
                             codec.stop()
                             codec.release()
-                            codec = null
                             return
                         }
                     }
@@ -229,6 +227,7 @@ class SoundFile private constructor() {
             } else if (outputBufferIndex == MediaCodec.INFO_OUTPUT_BUFFERS_CHANGED) {
                 outputBuffers = codec.outputBuffers
             } else if (outputBufferIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
+                throw RuntimeException("unexpected output formst.")
                 // Subsequent data will conform to new format.
                 // We could check that codec.getOutputFormat(), which is the new output format,
                 // is what we expect.
@@ -253,11 +252,9 @@ class SoundFile private constructor() {
         mDecodedBytes.order(ByteOrder.LITTLE_ENDIAN)
         this.decodedSamples = mDecodedBytes.asShortBuffer()
         avgBitRate = (fileSize * 8 * (sampleRate.toFloat() / numSamples) / 1000).toInt()
-        extractor!!.release()
-        extractor = null
-        codec!!.stop()
+        extractor.release()
+        codec.stop()
         codec.release()
-        codec = null
 
         // Temporary hack to make it work with the old version.
         numFrames = numSamples / samplesPerFrame
@@ -427,10 +424,10 @@ class SoundFile private constructor() {
         val numChannels = if (channels == 1) 2 else channels
         val mimeType = "audio/mp4a-latm"
         val bitrate = 64000 * numChannels // rule of thumb for a good quality: 64kbps per channel.
-        var codec: MediaCodec? = MediaCodec.createEncoderByType(mimeType)
+        val codec = MediaCodec.createEncoderByType(mimeType)
         val format = MediaFormat.createAudioFormat(mimeType, sampleRate, numChannels)
         format.setInteger(MediaFormat.KEY_BIT_RATE, bitrate)
-        codec!!.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
+        codec.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
         codec.start()
 
         // Get an estimation of the encoded data based on the bitrate. Add 10% to it.
@@ -540,7 +537,6 @@ class SoundFile private constructor() {
         encodedBytes.rewind()
         codec.stop()
         codec.release()
-        codec = null
 
         // Write the encoded stream to the file, 4kB at a time.
         buffer = ByteArray(4096)
