@@ -543,7 +543,7 @@ class SoundFile private constructor() {
         try {
             val outputStream = FileOutputStream(outputFile)
             outputStream.write(
-                MP4Header.getMP4Header(sampleRate, numChannels, frame_sizes, bitrate)
+                MP4Header._getMP4Header(sampleRate, numChannels, frame_sizes, bitrate)
             )
             while (encoded_size - encodedBytes.position() > buffer.size) {
                 encodedBytes[buffer]
