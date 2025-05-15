@@ -13,100 +13,125 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.demo.audiotrimmer.customAudioViews
 
-package com.demo.audiotrimmer.customAudioViews;
-
-public class WAVHeader {
-    private byte[] mHeader;          // the complete header.
-    private int mSampleRate;         // sampling frequency in Hz (e.g. 44100).
-    private int mChannels;           // number of channels.
-    private int mNumSamples;         // total number of samples per channel.
-    private int mNumBytesPerSample;  // number of bytes per sample, all channels included.
-
-    public WAVHeader(int sampleRate, int numChannels, int numSamples) {
-        mSampleRate = sampleRate;
-        mChannels = numChannels;
-        mNumSamples = numSamples;
-        mNumBytesPerSample = 2 * mChannels;  // assuming 2 bytes per sample (for 1 channel)
-        mHeader = null;
-        _setHeader();
+class WAVHeader(// sampling frequency in Hz (e.g. 44100).
+    private val mSampleRate: Int, // number of channels.
+    private val mChannels: Int, // total number of samples per channel.
+    private val mNumSamples: Int
+) {
+    // the complete header.
+    private var mHeader: ByteArray
+    init {
+        mHeader = wavHeader()
+    }
+    // number of bytes per sample, all channels included.
+    private val mNumBytesPerSample: Int
+    init{
+        // assuming 2 bytes per sample (for 1 channel)
+        mNumBytesPerSample = 2 * mChannels
     }
 
-    public static byte[] _getWAVHeader(int sampleRate, int numChannels, int numSamples) {
-        return new WAVHeader(sampleRate, numChannels, numSamples).mHeader;
-    }
-
-    public String toString() {
-        String str = "";
-        if (mHeader == null) {
-            return str;
-        }
-        int num_32bits_per_lines = 8;
-        int count = 0;
-        for (byte b : mHeader) {
-            boolean break_line = count > 0 && count % (num_32bits_per_lines * 4) == 0;
-            boolean insert_space = count > 0 && count % 4 == 0 && !break_line;
+    override fun toString(): String {
+        var str = ""
+        val num_32bits_per_lines = 8
+        var count = 0
+        for (b in mHeader!!) {
+            val break_line = count > 0 && count % (num_32bits_per_lines * 4) == 0
+            val insert_space = count > 0 && count % 4 == 0 && !break_line
             if (break_line) {
-                str += '\n';
+                str += '\n'
             }
             if (insert_space) {
-                str += ' ';
+                str += ' '
             }
-            str += String.format("%02X", b);
-            count++;
+            str += String.format("%02X", b)
+            count++
         }
-
-        return str;
+        return str
     }
 
-    private void _setHeader() {
-        byte[] header = new byte[46];
-        int offset = 0;
-        int size;
+    private fun wavHeader(): ByteArray {
+        val header = ByteArray(46)
+        var offset = 0
+        var size: Int
 
         // set the RIFF chunk
-        System.arraycopy(new byte[]{'R', 'I', 'F', 'F'}, 0, header, offset, 4);
-        offset += 4;
-        size = 36 + mNumSamples * mNumBytesPerSample;
-        header[offset++] = (byte) (size & 0xFF);
-        header[offset++] = (byte) ((size >> 8) & 0xFF);
-        header[offset++] = (byte) ((size >> 16) & 0xFF);
-        header[offset++] = (byte) ((size >> 24) & 0xFF);
-        System.arraycopy(new byte[]{'W', 'A', 'V', 'E'}, 0, header, offset, 4);
-        offset += 4;
+        System.arraycopy(
+            byteArrayOf(
+                'R'.code.toByte(),
+                'I'.code.toByte(),
+                'F'.code.toByte(),
+                'F'.code.toByte()
+            ), 0, header, offset, 4
+        )
+        offset += 4
+        size = 36 + mNumSamples * mNumBytesPerSample
+        header[offset++] = (size and 0xFF).toByte()
+        header[offset++] = (size shr 8 and 0xFF).toByte()
+        header[offset++] = (size shr 16 and 0xFF).toByte()
+        header[offset++] = (size shr 24 and 0xFF).toByte()
+        System.arraycopy(
+            byteArrayOf(
+                'W'.code.toByte(),
+                'A'.code.toByte(),
+                'V'.code.toByte(),
+                'E'.code.toByte()
+            ), 0, header, offset, 4
+        )
+        offset += 4
 
         // set the fmt chunk
-        System.arraycopy(new byte[]{'f', 'm', 't', ' '}, 0, header, offset, 4);
-        offset += 4;
-        System.arraycopy(new byte[]{0x10, 0, 0, 0}, 0, header, offset, 4);  // chunk size = 16
-        offset += 4;
-        System.arraycopy(new byte[]{1, 0}, 0, header, offset, 2);  // format = 1 for PCM
-        offset += 2;
-        header[offset++] = (byte) (mChannels & 0xFF);
-        header[offset++] = (byte) ((mChannels >> 8) & 0xFF);
-        header[offset++] = (byte) (mSampleRate & 0xFF);
-        header[offset++] = (byte) ((mSampleRate >> 8) & 0xFF);
-        header[offset++] = (byte) ((mSampleRate >> 16) & 0xFF);
-        header[offset++] = (byte) ((mSampleRate >> 24) & 0xFF);
-        int byteRate = mSampleRate * mNumBytesPerSample;
-        header[offset++] = (byte) (byteRate & 0xFF);
-        header[offset++] = (byte) ((byteRate >> 8) & 0xFF);
-        header[offset++] = (byte) ((byteRate >> 16) & 0xFF);
-        header[offset++] = (byte) ((byteRate >> 24) & 0xFF);
-        header[offset++] = (byte) (mNumBytesPerSample & 0xFF);
-        header[offset++] = (byte) ((mNumBytesPerSample >> 8) & 0xFF);
-        System.arraycopy(new byte[]{0x10, 0}, 0, header, offset, 2);
-        offset += 2;
+        System.arraycopy(
+            byteArrayOf(
+                'f'.code.toByte(),
+                'm'.code.toByte(),
+                't'.code.toByte(),
+                ' '.code.toByte()
+            ), 0, header, offset, 4
+        )
+        offset += 4
+        System.arraycopy(byteArrayOf(0x10, 0, 0, 0), 0, header, offset, 4) // chunk size = 16
+        offset += 4
+        System.arraycopy(byteArrayOf(1, 0), 0, header, offset, 2) // format = 1 for PCM
+        offset += 2
+        header[offset++] = (mChannels and 0xFF).toByte()
+        header[offset++] = (mChannels shr 8 and 0xFF).toByte()
+        header[offset++] = (mSampleRate and 0xFF).toByte()
+        header[offset++] = (mSampleRate shr 8 and 0xFF).toByte()
+        header[offset++] = (mSampleRate shr 16 and 0xFF).toByte()
+        header[offset++] = (mSampleRate shr 24 and 0xFF).toByte()
+        val byteRate = mSampleRate * mNumBytesPerSample
+        header[offset++] = (byteRate and 0xFF).toByte()
+        header[offset++] = (byteRate shr 8 and 0xFF).toByte()
+        header[offset++] = (byteRate shr 16 and 0xFF).toByte()
+        header[offset++] = (byteRate shr 24 and 0xFF).toByte()
+        header[offset++] = (mNumBytesPerSample and 0xFF).toByte()
+        header[offset++] = (mNumBytesPerSample shr 8 and 0xFF).toByte()
+        System.arraycopy(byteArrayOf(0x10, 0), 0, header, offset, 2)
+        offset += 2
 
         // set the beginning of the data chunk
-        System.arraycopy(new byte[]{'d', 'a', 't', 'a'}, 0, header, offset, 4);
-        offset += 4;
-        size = mNumSamples * mNumBytesPerSample;
-        header[offset++] = (byte) (size & 0xFF);
-        header[offset++] = (byte) ((size >> 8) & 0xFF);
-        header[offset++] = (byte) ((size >> 16) & 0xFF);
-        header[offset++] = (byte) ((size >> 24) & 0xFF);
+        System.arraycopy(
+            byteArrayOf(
+                'd'.code.toByte(),
+                'a'.code.toByte(),
+                't'.code.toByte(),
+                'a'.code.toByte()
+            ), 0, header, offset, 4
+        )
+        offset += 4
+        size = mNumSamples * mNumBytesPerSample
+        header[offset++] = (size and 0xFF).toByte()
+        header[offset++] = (size shr 8 and 0xFF).toByte()
+        header[offset++] = (size shr 16 and 0xFF).toByte()
+        header[offset++] = (size shr 24 and 0xFF).toByte()
+        return header
+    }
 
-        mHeader = header;
+    companion object {
+        fun _getWAVHeader(sampleRate: Int, numChannels: Int, numSamples: Int): ByteArray {
+            return WAVHeader(sampleRate, numChannels, numSamples).mHeader
+        }
     }
 }

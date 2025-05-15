@@ -188,7 +188,7 @@ class AudioTrimmerActivity : AppCompatActivity(), View.OnClickListener, MarkerLi
                 txtAudioRecord!!.setBackgroundResource(R.drawable.ic_stop_btn1)
                 txtAudioRecordTime!!.visibility = View.VISIBLE
                 startRecording()
-                mRecordingLastUpdateTime = Utility._getCurrentTime()
+                mRecordingLastUpdateTime = Utility.currentTime
                 mRecordingKeepGoing = true
             }
         } else if (view === txtAudioCancel) {
@@ -201,7 +201,7 @@ class AudioTrimmerActivity : AppCompatActivity(), View.OnClickListener, MarkerLi
             txtAudioRecord!!.setBackgroundResource(R.drawable.ic_stop_btn1)
             txtAudioRecordTime!!.visibility = View.VISIBLE
             startRecording()
-            mRecordingLastUpdateTime = Utility._getCurrentTime()
+            mRecordingLastUpdateTime = Utility.currentTime
             mRecordingKeepGoing = true
             //            txtAudioCrop.setBackgroundResource(R.drawable.ic_crop_btn);
             txtAudioDone!!.visibility = View.GONE
@@ -287,7 +287,7 @@ class AudioTrimmerActivity : AppCompatActivity(), View.OnClickListener, MarkerLi
     private fun startRecording() {
         val listener: SoundFile.ProgressListener = object : SoundFile.ProgressListener {
             override fun reportProgress(elapsedTime: Double): Boolean {
-                val now = Utility._getCurrentTime()
+                val now = Utility.currentTime
                 if (now - mRecordingLastUpdateTime > 5) {
                     mRecordingTime = elapsedTime
                     // Only UI thread can update Views such as TextViews.
@@ -949,7 +949,7 @@ class AudioTrimmerActivity : AppCompatActivity(), View.OnClickListener, MarkerLi
     private fun loadFromFile(mFilename: String) {
         mFile = File(mFilename)
         //        SongMetadataReader metadataReader = new SongMetadataReader(this, mFilename);
-        mLoadingLastUpdateTime = Utility._getCurrentTime()
+        mLoadingLastUpdateTime = Utility.currentTime
         mLoadingKeepGoing = true
         mProgressDialog = ProgressDialog(this)
         mProgressDialog!!.setProgressStyle(ProgressDialog.STYLE_HORIZONTAL)
@@ -957,7 +957,7 @@ class AudioTrimmerActivity : AppCompatActivity(), View.OnClickListener, MarkerLi
         mProgressDialog!!.show()
         val listener: SoundFile.ProgressListener = object : SoundFile.ProgressListener {
             override fun reportProgress(fractionComplete: Double): Boolean {
-                val now = Utility._getCurrentTime()
+                val now = Utility.currentTime
                 if (now - mLoadingLastUpdateTime > 100) {
                     mProgressDialog!!.progress =
                         (mProgressDialog!!.getMax() * fractionComplete).toInt()
